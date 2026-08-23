@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ep. Log — where'd I leave off?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="halftone-overlay"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <h1 class="title">EP. LOG</h1>
+    <p class="tagline">"wait&hellip; which episode was I on?"</p>
+  </div>
+  <div class="issue-tag">VOL. 01 &mdash; PERSONAL WATCHLIST</div>
+</header>
+
+<main class="grid">
+
+  <section class="panel panel-add">
+    <div class="panel-label">+ NEW ENTRY</div>
+    <form id="add-form" class="add-form">
+      <input type="text" id="f-title" placeholder="Anime title" required>
+      <div class="row">
+        <input type="number" id="f-episode" placeholder="Ep. #" min="0" value="0">
+        <select id="f-status">
+          <option value="watching">watching</option>
+          <option value="on-hold">on hold</option>
+          <option value="plan-to-watch">plan to watch</option>
+          <option value="completed">completed</option>
+          <option value="dropped">dropped</option>
+        </select>
+      </div>
+      <input type="text" id="f-notes" placeholder="Notes (optional — 'cried at ep 12')">
+      <button type="submit" class="btn btn-primary">Add to log</button>
+    </form>
+  </section>
+
+  <section class="panel panel-recommend">
+    <div class="panel-label">◆ WHAT NEXT?</div>
+    <p class="recommend-copy">Feed your list to Groq. Get 3 picks back.</p>
+    <button id="recommend-btn" class="btn btn-accent">Ask for a recommendation</button>
+    <div id="recommend-output" class="recommend-output"></div>
+  </section>
+
+  <section class="panel panel-list">
+    <div class="panel-label">▤ CURRENTLY TRACKED</div>
+    <div id="anime-list" class="anime-list">
+      <p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>no more "wait which episode was I on" energy</span>
+</footer>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
