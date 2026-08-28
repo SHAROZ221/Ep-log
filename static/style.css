@@ -357,6 +357,43 @@ input:focus, select:focus, button:focus {
 .tier-btn.tier-B.active { background: #7BA88C; }
 .tier-btn.tier-C.active { background: var(--muted); color: white; }
 
+.type-filter {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.type-filter-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.9rem;
+  border: 1.5px solid var(--ink);
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.type-filter-btn:hover { color: var(--ink); }
+.type-filter-btn.active { background: var(--ink); color: var(--paper); }
+
+.anime-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.type-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--muted);
+  padding: 0.1rem 0.35rem;
+}
+
 .status-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;

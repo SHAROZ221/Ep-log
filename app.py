@@ -28,15 +28,22 @@ ANILIST_QUERY = """
 query ($search: String) {
   Media(search: $search, type: ANIME) {
     genres
+    format
   }
 }
 """
 
+# Map AniList's format values to a simple TV / Movie label. Anything not
+# explicitly a movie is treated as TV (covers TV, OVA, ONA, Special, Music).
+ANILIST_FORMAT_MAP = {
+    "MOVIE": "Movie",
+}
 
-def fetch_genres(title, retries=3):
-    """Look up an anime title on AniList and return a comma-separated genre
-    string for the best match. Retries on transient errors (timeouts, 5xx).
-    Returns '' if nothing is found or all attempts fail (never blocks adding
+
+def fetch_metadata(title, retries=3):
+    """Look up an anime title on AniList and return (genre_str, type_str) for
+    the best match. Retries on transient errors (timeouts, 5xx). Returns
+    ('', '') if nothing is found or all attempts fail (never blocks adding
     the anime)."""
     for attempt in range(1, retries + 1):
         try:
@@ -50,17 +57,18 @@ def fetch_genres(title, retries=3):
             payload = resp.json()
             media = (payload.get("data") or {}).get("Media")
             if not media:
-                print(f"[genre-lookup] No AniList results for title: {title!r}")
-                return ""
+                print(f"[metadata-lookup] No AniList results for title: {title!r}")
+                return "", ""
             genres = media.get("genres") or []
             genre_str = ", ".join(genres)
-            print(f"[genre-lookup] {title!r} -> {genre_str!r}")
-            return genre_str
+            type_str = ANILIST_FORMAT_MAP.get(media.get("format"), "TV")
+            print(f"[metadata-lookup] {title!r} -> genre={genre_str!r} type={type_str!r}")
+            return genre_str, type_str
         except Exception as e:
-            print(f"[genre-lookup] attempt {attempt}/{retries} FAILED for {title!r}: {type(e).__name__}: {e}")
+            print(f"[metadata-lookup] attempt {attempt}/{retries} FAILED for {title!r}: {type(e).__name__}: {e}")
             if attempt < retries:
                 time.sleep(1.5 * attempt)  # backoff: 1.5s, 3s
-    return ""
+    return "", ""
 
 
 @app.route("/")
@@ -81,7 +89,7 @@ def add_anime():
     if not title:
         return jsonify({"error": "Title is required. Even side quests need a name."}), 400
 
-    genre = fetch_genres(title)
+    genre, media_type = fetch_metadata(title)
 
     entry = {
         "id": str(uuid.uuid4()),
@@ -91,6 +99,7 @@ def add_anime():
         "notes": body.get("notes", "").strip(),
         "genre": genre,
         "tier": body.get("tier") if body.get("tier") in TIERS else None,
+        "type": media_type or None,
     }
     response = supabase.table("anime").insert(entry).execute()
     return jsonify(response.data[0]), 201
@@ -112,6 +121,8 @@ def update_anime(anime_id):
         updates["genre"] = (body["genre"] or "").strip()
     if "tier" in body:
         updates["tier"] = body["tier"] if body["tier"] in TIERS else None
+    if "type" in body and body["type"] in {"TV", "Movie"}:
+        updates["type"] = body["type"]
 
     if not updates:
         return jsonify({"error": "No valid fields to update."}), 400
@@ -129,11 +140,17 @@ def refresh_genre(anime_id):
         return jsonify({"error": "Not found"}), 404
 
     title = response.data[0]["title"]
-    genre = fetch_genres(title)
-    if not genre:
-        return jsonify({"error": "Could not find a genre match right now. Try again later."}), 502
+    genre, media_type = fetch_metadata(title)
+    if not genre and not media_type:
+        return jsonify({"error": "Could not find a match right now. Try again later."}), 502
 
-    update_response = supabase.table("anime").update({"genre": genre}).eq("id", anime_id).execute()
+    updates = {}
+    if genre:
+        updates["genre"] = genre
+    if media_type:
+        updates["type"] = media_type
+
+    update_response = supabase.table("anime").update(updates).eq("id", anime_id).execute()
     return jsonify(update_response.data[0])
 
 

@@ -3,6 +3,10 @@ const addForm = document.getElementById("add-form");
 const recommendBtn = document.getElementById("recommend-btn");
 const recommendOutput = document.getElementById("recommend-output");
 const statsOutput = document.getElementById("stats-output");
+const typeFilterButtons = document.querySelectorAll(".type-filter-btn");
+
+let currentAnimeData = [];
+let currentTypeFilter = "all";
 
 function statusClass(status) {
   return "status-" + status;
@@ -11,8 +15,22 @@ function statusClass(status) {
 async function loadAnime() {
   const res = await fetch("/api/anime");
   const data = await res.json();
-  renderList(data);
+  currentAnimeData = data;
+  renderList(applyTypeFilter(data));
 }
+
+function applyTypeFilter(data) {
+  if (currentTypeFilter === "all") return data;
+  return data.filter(entry => (entry.type || "TV") === currentTypeFilter);
+}
+
+typeFilterButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    currentTypeFilter = btn.dataset.type;
+    typeFilterButtons.forEach(b => b.classList.toggle("active", b === btn));
+    renderList(applyTypeFilter(currentAnimeData));
+  });
+});
 
 function renderList(data) {
   if (!data.length) {
@@ -24,7 +42,10 @@ function renderList(data) {
     <div class="anime-card" data-id="${entry.id}">
       <div class="ep-counter">EP ${entry.episode}</div>
       <div class="anime-info">
-        <div class="anime-title">${escapeHtml(entry.title)}</div>
+        <div class="anime-title-row">
+          <div class="anime-title">${escapeHtml(entry.title)}</div>
+          <span class="type-badge">${entry.type || "TV"}</span>
+        </div>
         ${entry.genre
           ? `<div class="anime-genre">${escapeHtml(entry.genre)}</div>`
           : `<button class="genre-refresh-btn" title="Look up genre">fetch genre</button>`}

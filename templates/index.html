@@ -17,7 +17,7 @@
     <h1 class="title">EP. LOG</h1>
     <p class="tagline">"wait&hellip; which episode was I on?"</p>
   </div>
-  <div class="issue-tag">VOL. 02 &mdash; PERSONAL WATCHLIST</div>
+  <div class="issue-tag">VOL. 01 &mdash; PERSONAL WATCHLIST</div>
 </header>
 
 <main class="grid">
@@ -36,7 +36,7 @@
           <option value="dropped">Dropped</option>
         </select>
       </div>
-      <input type="text" id="f-notes" placeholder="Notes">
+      <input type="text" id="f-notes" placeholder="Notes (optional — 'cried at ep 12')">
       <button type="submit" class="btn btn-primary">Add to log</button>
     </form>
   </section>
@@ -55,6 +55,11 @@
 
   <section class="panel panel-list">
     <div class="panel-label">▤ CURRENTLY TRACKED</div>
+    <div class="type-filter">
+      <button class="type-filter-btn active" data-type="all">All</button>
+      <button class="type-filter-btn" data-type="TV">TV</button>
+      <button class="type-filter-btn" data-type="Movie">Movies</button>
+    </div>
     <div id="anime-list" class="anime-list">
       <p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>
     </div>
