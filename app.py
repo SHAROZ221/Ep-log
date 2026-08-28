@@ -1,30 +1,20 @@
 import os
-import json
 import uuid
-from pathlib import Path
 
 from flask import Flask, jsonify, request, render_template
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
 
 app = Flask(__name__)
 
-DATA_FILE = Path(__file__).parent / "data.json"
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 STATUSES = {"watching", "on-hold", "dropped", "completed", "plan-to-watch"}
-
-
-def load_data():
-    if not DATA_FILE.exists():
-        return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 @app.route("/")
@@ -34,7 +24,8 @@ def index():
 
 @app.route("/api/anime", methods=["GET"])
 def get_anime():
-    return jsonify(load_data())
+    response = supabase.table("anime").select("*").execute()
+    return jsonify(response.data)
 
 
 @app.route("/api/anime", methods=["POST"])
@@ -51,38 +42,37 @@ def add_anime():
         "status": body.get("status") if body.get("status") in STATUSES else "watching",
         "notes": body.get("notes", "").strip(),
     }
-    data = load_data()
-    data.append(entry)
-    save_data(data)
-    return jsonify(entry), 201
+    response = supabase.table("anime").insert(entry).execute()
+    return jsonify(response.data[0]), 201
 
 
 @app.route("/api/anime/<anime_id>", methods=["PATCH"])
 def update_anime(anime_id):
     body = request.get_json(force=True)
-    data = load_data()
-    for entry in data:
-        if entry["id"] == anime_id:
-            if "episode" in body:
-                entry["episode"] = int(body["episode"])
-            if "status" in body and body["status"] in STATUSES:
-                entry["status"] = body["status"]
-            if "notes" in body:
-                entry["notes"] = body["notes"]
-            if "title" in body and body["title"].strip():
-                entry["title"] = body["title"].strip()
-            save_data(data)
-            return jsonify(entry)
-    return jsonify({"error": "Not found. Did you drop this one and forget?"}), 404
+    updates = {}
+    if "episode" in body:
+        updates["episode"] = int(body["episode"])
+    if "status" in body and body["status"] in STATUSES:
+        updates["status"] = body["status"]
+    if "notes" in body:
+        updates["notes"] = body["notes"]
+    if "title" in body and body["title"].strip():
+        updates["title"] = body["title"].strip()
+
+    if not updates:
+        return jsonify({"error": "No valid fields to update."}), 400
+
+    response = supabase.table("anime").update(updates).eq("id", anime_id).execute()
+    if not response.data:
+        return jsonify({"error": "Not found. Did you drop this one and forget?"}), 404
+    return jsonify(response.data[0])
 
 
 @app.route("/api/anime/<anime_id>", methods=["DELETE"])
 def delete_anime(anime_id):
-    data = load_data()
-    new_data = [e for e in data if e["id"] != anime_id]
-    if len(new_data) == len(data):
+    response = supabase.table("anime").delete().eq("id", anime_id).execute()
+    if not response.data:
         return jsonify({"error": "Not found"}), 404
-    save_data(new_data)
     return jsonify({"deleted": anime_id})
 
 
@@ -94,7 +84,8 @@ def recommend():
             "error": "No GROQ_API_KEY set. Add one to your .env file to unlock recommendations."
         }), 400
 
-    data = load_data()
+    response = supabase.table("anime").select("*").execute()
+    data = response.data
     if not data:
         return jsonify({
             "error": "Your list is empty. Add a few anime first so it has something to work with."
