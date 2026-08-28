@@ -17,7 +17,7 @@
     <h1 class="title">EP. LOG</h1>
     <p class="tagline">"wait&hellip; which episode was I on?"</p>
   </div>
-  <div class="issue-tag">VOL. 01 &mdash; PERSONAL WATCHLIST</div>
+  <div class="issue-tag">VOL. 02 &mdash; PERSONAL WATCHLIST</div>
 </header>
 
 <main class="grid">
@@ -32,11 +32,11 @@
           <option value="watching">Watching</option>
           <option value="on-hold">On hold</option>
           <option value="plan-to-watch">Plan to watch</option>
-          <option value="completed">C ompleted</option>
+          <option value="completed">Completed</option>
           <option value="dropped">Dropped</option>
         </select>
       </div>
-      <input type="text" id="f-notes" placeholder="Notes (optional — 'cried at ep 12')">
+      <input type="text" id="f-notes" placeholder="Notes">
       <button type="submit" class="btn btn-primary">Add to log</button>
     </form>
   </section>
@@ -46,6 +46,11 @@
     <p class="recommend-copy">Feed your list to Groq. Get 3 picks back.</p>
     <button id="recommend-btn" class="btn btn-accent">Ask for a recommendation</button>
     <div id="recommend-output" class="recommend-output"></div>
+  </section>
+
+  <section class="panel panel-stats">
+    <div class="panel-label">▦ WATCH STATS</div>
+    <div id="stats-output" class="stats-output">Loading stats&hellip;</div>
   </section>
 
   <section class="panel panel-list">

@@ -79,6 +79,7 @@ body {
 }
 
 .panel-list { grid-column: 1 / -1; }
+.panel-stats { grid-column: 1 / -1; }
 
 .panel {
   background: white;
@@ -122,7 +123,7 @@ input:focus, select:focus, button:focus {
   outline-offset: 1px;
 }
 
-#f-title, #f-notes { width: 100%; }
+#f-title, #f-notes, #f-genre { width: 100%; }
 #f-episode { width: 6rem; }
 #f-status { flex: 1; }
 
@@ -167,6 +168,113 @@ input:focus, select:focus, button:focus {
 .recommend-output.error { color: var(--crimson); font-family: 'JetBrains Mono', monospace; }
 .recommend-output.loading { color: var(--muted); font-style: italic; }
 
+/* Watch stats panel */
+.stats-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.stat-block {
+  border: 2px solid var(--ink);
+  padding: 0.75rem 1.25rem;
+  min-width: 7rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-family: 'Anton', sans-serif;
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.35rem;
+}
+
+.stats-subheading {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.stats-status {
+  margin-bottom: 1.25rem;
+}
+
+.status-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.status-bar-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr 2rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.status-bar-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.status-bar-track {
+  height: 1.1rem;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  overflow: hidden;
+}
+
+.status-bar-fill {
+  height: 100%;
+  min-width: 3px;
+  transition: width 0.3s ease;
+}
+
+.status-bar-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.genre-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.genre-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  border: 1.5px solid var(--ink);
+  background: var(--gold);
+  padding: 0.25rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.genre-count {
+  font-weight: 700;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.05rem 0.35rem;
+}
+
 .anime-list {
   display: flex;
   flex-direction: column;
@@ -201,7 +309,53 @@ input:focus, select:focus, button:focus {
 }
 
 .anime-info .anime-title { font-weight: 600; }
+.anime-info .anime-genre { font-size: 0.75rem; color: var(--crimson); font-family: 'JetBrains Mono', monospace; margin-top: 0.15rem; }
 .anime-info .anime-notes { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+
+.genre-refresh-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: none;
+  border: 1px dashed var(--muted);
+  padding: 0.15rem 0.4rem;
+  margin-top: 0.15rem;
+  cursor: pointer;
+}
+
+.genre-refresh-btn:hover { border-color: var(--ink); color: var(--ink); }
+.genre-refresh-btn:disabled { cursor: default; opacity: 0.6; }
+
+.tier-selector {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.tier-btn {
+  font-family: 'Anton', sans-serif;
+  font-size: 0.75rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1.6rem;
+  text-align: center;
+  padding: 0;
+  border: 1.5px solid var(--ink);
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, transform 0.08s ease;
+}
+
+.tier-btn:hover { opacity: 0.85; }
+.tier-btn:active { transform: translate(1px, 1px); }
+
+.tier-btn.active { opacity: 1; }
+.tier-btn.tier-S.active { background: var(--crimson); color: white; }
+.tier-btn.tier-A.active { background: var(--gold); }
+.tier-btn.tier-B.active { background: #7BA88C; }
+.tier-btn.tier-C.active { background: var(--muted); color: white; }
 
 .status-tag {
   font-family: 'JetBrains Mono', monospace;
@@ -247,4 +401,6 @@ input:focus, select:focus, button:focus {
   .grid { grid-template-columns: 1fr; }
   .anime-card { grid-template-columns: auto 1fr; row-gap: 0.5rem; }
   .card-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .stats-row { gap: 1rem; }
+  .stat-block { flex: 1; min-width: 0; }
 }

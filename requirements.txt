@@ -2,3 +2,4 @@ flask
 python-dotenv
 groq
 supabase
+requests

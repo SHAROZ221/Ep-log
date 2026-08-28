@@ -2,6 +2,7 @@ const listEl = document.getElementById("anime-list");
 const addForm = document.getElementById("add-form");
 const recommendBtn = document.getElementById("recommend-btn");
 const recommendOutput = document.getElementById("recommend-output");
+const statsOutput = document.getElementById("stats-output");
 
 function statusClass(status) {
   return "status-" + status;
@@ -18,12 +19,19 @@ function renderList(data) {
     listEl.innerHTML = '<p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>';
     return;
   }
+  const tiers = ["S", "A", "B", "C"];
   listEl.innerHTML = data.map(entry => `
     <div class="anime-card" data-id="${entry.id}">
       <div class="ep-counter">EP ${entry.episode}</div>
       <div class="anime-info">
         <div class="anime-title">${escapeHtml(entry.title)}</div>
+        ${entry.genre
+          ? `<div class="anime-genre">${escapeHtml(entry.genre)}</div>`
+          : `<button class="genre-refresh-btn" title="Look up genre">fetch genre</button>`}
         ${entry.notes ? `<div class="anime-notes">${escapeHtml(entry.notes)}</div>` : ""}
+        <div class="tier-selector">
+          ${tiers.map(t => `<button class="tier-btn tier-${t} ${entry.tier === t ? "active" : ""}" data-tier="${t}">${t}</button>`).join("")}
+        </div>
       </div>
       <div class="status-tag ${statusClass(entry.status)}">${entry.status}</div>
       <div class="card-actions">
@@ -40,6 +48,78 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+async function loadStats() {
+  try {
+    const res = await fetch("/api/stats");
+    const data = await res.json();
+
+    if (!data.total_shows) {
+      statsOutput.innerHTML = '<p class="empty-state">No stats yet — add a show to get started.</p>';
+      return;
+    }
+
+    const genresHtml = data.top_genres.length
+      ? data.top_genres.map(g => `<span class="genre-pill">${escapeHtml(g.genre)} <span class="genre-count">${g.count}</span></span>`).join("")
+      : '<span class="empty-state">No genre data yet</span>';
+
+    const statusOrder = ["watching", "completed", "on-hold", "plan-to-watch", "dropped"];
+    const statusLabels = {
+      "watching": "Watching",
+      "completed": "Completed",
+      "on-hold": "On hold",
+      "plan-to-watch": "Plan to watch",
+      "dropped": "Dropped"
+    };
+    const maxStatusCount = Math.max(1, ...Object.values(data.status_breakdown));
+    const statusBarsHtml = statusOrder
+      .filter(s => data.status_breakdown[s])
+      .map(s => {
+        const count = data.status_breakdown[s];
+        const pct = Math.round((count / maxStatusCount) * 100);
+        return `
+          <div class="status-bar-row">
+            <div class="status-bar-label">${statusLabels[s]}</div>
+            <div class="status-bar-track">
+              <div class="status-bar-fill ${statusClass(s)}" style="width: ${pct}%"></div>
+            </div>
+            <div class="status-bar-count">${count}</div>
+          </div>
+        `;
+      }).join("");
+
+    statsOutput.innerHTML = `
+      <div class="stats-row">
+        <div class="stat-block">
+          <div class="stat-value">${data.total_shows}</div>
+          <div class="stat-label">shows tracked</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value">${data.total_episodes}</div>
+          <div class="stat-label">episodes watched</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value">${data.estimated_hours}</div>
+          <div class="stat-label">hours (est.)</div>
+        </div>
+      </div>
+      <div class="stats-status">
+        <div class="stats-subheading">Watch status</div>
+        <div class="status-bars">${statusBarsHtml}</div>
+      </div>
+      <div class="stats-genres">
+        <div class="stats-subheading">Top genres</div>
+        <div class="genre-pills">${genresHtml}</div>
+      </div>
+    `;
+  } catch (err) {
+    statsOutput.innerHTML = '<p class="empty-state">Couldn\'t load stats.</p>';
+  }
+}
+
+async function refreshAll() {
+  await Promise.all([loadAnime(), loadStats()]);
+}
+
 addForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = document.getElementById("f-title").value;
@@ -47,15 +127,25 @@ addForm.addEventListener("submit", async (e) => {
   const status = document.getElementById("f-status").value;
   const notes = document.getElementById("f-notes").value;
 
-  await fetch("/api/anime", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, episode, status, notes })
-  });
+  const submitBtn = addForm.querySelector("button[type=submit]");
+  const originalLabel = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Looking up genre…";
 
-  addForm.reset();
-  document.getElementById("f-episode").value = 0;
-  loadAnime();
+  try {
+    await fetch("/api/anime", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, episode, status, notes })
+    });
+
+    addForm.reset();
+    document.getElementById("f-episode").value = 0;
+    refreshAll();
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+  }
 });
 
 listEl.addEventListener("click", async (e) => {
@@ -65,7 +155,7 @@ listEl.addEventListener("click", async (e) => {
 
   if (e.target.classList.contains("btn-del")) {
     await fetch(`/api/anime/${id}`, { method: "DELETE" });
-    loadAnime();
+    refreshAll();
   }
 
   if (e.target.classList.contains("btn-inc")) {
@@ -75,7 +165,32 @@ listEl.addEventListener("click", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ episode: currentEp + 1 })
     });
-    loadAnime();
+    refreshAll();
+  }
+
+  if (e.target.classList.contains("genre-refresh-btn")) {
+    e.target.disabled = true;
+    e.target.textContent = "looking up…";
+    const res = await fetch(`/api/anime/${id}/refresh-genre`, { method: "POST" });
+    if (!res.ok) {
+      e.target.disabled = false;
+      e.target.textContent = "retry fetch genre";
+    } else {
+      refreshAll();
+    }
+  }
+
+  if (e.target.classList.contains("tier-btn")) {
+    const clickedTier = e.target.dataset.tier;
+    const isActive = e.target.classList.contains("active");
+    // clicking the active tier again clears it, otherwise set the new tier
+    const newTier = isActive ? null : clickedTier;
+    await fetch(`/api/anime/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tier: newTier })
+    });
+    refreshAll();
   }
 });
 
@@ -103,4 +218,4 @@ recommendBtn.addEventListener("click", async () => {
   }
 });
 
-loadAnime();
+refreshAll();
