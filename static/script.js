@@ -4,6 +4,8 @@ const recommendBtn = document.getElementById("recommend-btn");
 const recommendOutput = document.getElementById("recommend-output");
 const statsOutput = document.getElementById("stats-output");
 const typeFilterButtons = document.querySelectorAll(".type-filter-btn");
+const claimBanner = document.getElementById("claim-banner");
+const claimBtn = document.getElementById("claim-btn");
 
 let currentAnimeData = [];
 let currentTypeFilter = "all";
@@ -12,8 +14,16 @@ function statusClass(status) {
   return "status-" + status;
 }
 
+/** fetch() wrapper that attaches the signed-in user's access token. */
+async function authFetch(url, options = {}) {
+  const token = getAccessToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return fetch(url, { ...options, headers });
+}
+
 async function loadAnime() {
-  const res = await fetch("/api/anime");
+  const res = await authFetch("/api/anime");
   const data = await res.json();
   currentAnimeData = data;
   renderList(applyTypeFilter(data));
@@ -71,7 +81,7 @@ function escapeHtml(str) {
 
 async function loadStats() {
   try {
-    const res = await fetch("/api/stats");
+    const res = await authFetch("/api/stats");
     const data = await res.json();
 
     if (!data.total_shows) {
@@ -154,7 +164,7 @@ addForm.addEventListener("submit", async (e) => {
   submitBtn.textContent = "Looking up genre…";
 
   try {
-    await fetch("/api/anime", {
+    await authFetch("/api/anime", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, episode, status, notes })
@@ -175,13 +185,13 @@ listEl.addEventListener("click", async (e) => {
   const id = card.dataset.id;
 
   if (e.target.classList.contains("btn-del")) {
-    await fetch(`/api/anime/${id}`, { method: "DELETE" });
+    await authFetch(`/api/anime/${id}`, { method: "DELETE" });
     refreshAll();
   }
 
   if (e.target.classList.contains("btn-inc")) {
     const currentEp = parseInt(card.querySelector(".ep-counter").textContent.replace("EP ", ""), 10);
-    await fetch(`/api/anime/${id}`, {
+    await authFetch(`/api/anime/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ episode: currentEp + 1 })
@@ -192,7 +202,7 @@ listEl.addEventListener("click", async (e) => {
   if (e.target.classList.contains("genre-refresh-btn")) {
     e.target.disabled = true;
     e.target.textContent = "looking up…";
-    const res = await fetch(`/api/anime/${id}/refresh-genre`, { method: "POST" });
+    const res = await authFetch(`/api/anime/${id}/refresh-genre`, { method: "POST" });
     if (!res.ok) {
       e.target.disabled = false;
       e.target.textContent = "retry fetch genre";
@@ -206,7 +216,7 @@ listEl.addEventListener("click", async (e) => {
     const isActive = e.target.classList.contains("active");
     // clicking the active tier again clears it, otherwise set the new tier
     const newTier = isActive ? null : clickedTier;
-    await fetch(`/api/anime/${id}`, {
+    await authFetch(`/api/anime/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tier: newTier })
@@ -221,7 +231,7 @@ recommendBtn.addEventListener("click", async () => {
   recommendBtn.disabled = true;
 
   try {
-    const res = await fetch("/api/recommend", { method: "POST" });
+    const res = await authFetch("/api/recommend", { method: "POST" });
     const data = await res.json();
 
     if (!res.ok) {
@@ -239,4 +249,30 @@ recommendBtn.addEventListener("click", async () => {
   }
 });
 
-refreshAll();
+claimBtn.addEventListener("click", async () => {
+  claimBtn.disabled = true;
+  claimBtn.textContent = "Claiming…";
+  try {
+    const res = await authFetch("/api/claim-legacy", { method: "POST" });
+    const data = await res.json();
+    claimBanner.style.display = "none";
+    if (data.claimed > 0) {
+      refreshAll();
+    }
+  } catch (err) {
+    claimBtn.disabled = false;
+    claimBtn.textContent = "Claim my old entries";
+  }
+});
+
+// Wait for auth.js to confirm a signed-in session before loading any data.
+window.addEventListener("auth-ready", async () => {
+  refreshAll();
+  try {
+    const res = await authFetch("/api/legacy-count");
+    const data = await res.json();
+    claimBanner.style.display = data.count > 0 ? "flex" : "none";
+  } catch (err) {
+    claimBanner.style.display = "none";
+  }
+});

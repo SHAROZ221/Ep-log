@@ -13,11 +13,34 @@ app = Flask(__name__)
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 STATUSES = {"watching", "on-hold", "dropped", "completed", "plan-to-watch"}
 TIERS = {"S", "A", "B", "C"}
+
+
+def get_current_user():
+    """Validate the Bearer token from the Authorization header against
+    Supabase Auth and return the user object, or None if missing/invalid."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1]
+    try:
+        user_response = supabase.auth.get_user(token)
+        return user_response.user
+    except Exception:
+        return None
+
+
+def require_user():
+    """Helper for routes: returns (user, None) or (None, error_response)."""
+    user = get_current_user()
+    if not user:
+        return None, (jsonify({"error": "Not signed in."}), 401)
+    return user, None
 
 # Rough average episode runtime used to estimate hours watched.
 AVG_EPISODE_MINUTES = 24
@@ -73,17 +96,58 @@ def fetch_metadata(title, retries=3):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template(
+        "index.html",
+        supabase_url=SUPABASE_URL,
+        supabase_anon_key=SUPABASE_ANON_KEY,
+    )
+
+
+@app.route("/api/legacy-count", methods=["GET"])
+def legacy_count():
+    """Returns how many rows still have no user_id, so the frontend only
+    shows the claim banner when there's actually something to claim."""
+    user, err = require_user()
+    if err:
+        return err
+
+    response = supabase.table("anime").select("id").is_("user_id", "null").execute()
+    return jsonify({"count": len(response.data)})
+
+
+@app.route("/api/claim-legacy", methods=["POST"])
+def claim_legacy():
+    """One-time migration helper: assigns any pre-auth entries (user_id is
+    null) to the currently signed-in user. Safe to call multiple times —
+    once claimed, rows won't match the null filter again."""
+    user, err = require_user()
+    if err:
+        return err
+
+    response = (
+        supabase.table("anime")
+        .update({"user_id": user.id})
+        .is_("user_id", "null")
+        .execute()
+    )
+    return jsonify({"claimed": len(response.data)})
 
 
 @app.route("/api/anime", methods=["GET"])
 def get_anime():
-    response = supabase.table("anime").select("*").execute()
+    user, err = require_user()
+    if err:
+        return err
+    response = supabase.table("anime").select("*").eq("user_id", user.id).execute()
     return jsonify(response.data)
 
 
 @app.route("/api/anime", methods=["POST"])
 def add_anime():
+    user, err = require_user()
+    if err:
+        return err
+
     body = request.get_json(force=True)
     title = (body.get("title") or "").strip()
     if not title:
@@ -93,6 +157,7 @@ def add_anime():
 
     entry = {
         "id": str(uuid.uuid4()),
+        "user_id": user.id,
         "title": title,
         "episode": int(body.get("episode", 0) or 0),
         "status": body.get("status") if body.get("status") in STATUSES else "watching",
@@ -107,6 +172,10 @@ def add_anime():
 
 @app.route("/api/anime/<anime_id>", methods=["PATCH"])
 def update_anime(anime_id):
+    user, err = require_user()
+    if err:
+        return err
+
     body = request.get_json(force=True)
     updates = {}
     if "episode" in body:
@@ -127,7 +196,13 @@ def update_anime(anime_id):
     if not updates:
         return jsonify({"error": "No valid fields to update."}), 400
 
-    response = supabase.table("anime").update(updates).eq("id", anime_id).execute()
+    response = (
+        supabase.table("anime")
+        .update(updates)
+        .eq("id", anime_id)
+        .eq("user_id", user.id)
+        .execute()
+    )
     if not response.data:
         return jsonify({"error": "Not found. Did you drop this one and forget?"}), 404
     return jsonify(response.data[0])
@@ -135,7 +210,13 @@ def update_anime(anime_id):
 
 @app.route("/api/anime/<anime_id>/refresh-genre", methods=["POST"])
 def refresh_genre(anime_id):
-    response = supabase.table("anime").select("*").eq("id", anime_id).execute()
+    user, err = require_user()
+    if err:
+        return err
+
+    response = (
+        supabase.table("anime").select("*").eq("id", anime_id).eq("user_id", user.id).execute()
+    )
     if not response.data:
         return jsonify({"error": "Not found"}), 404
 
@@ -150,13 +231,29 @@ def refresh_genre(anime_id):
     if media_type:
         updates["type"] = media_type
 
-    update_response = supabase.table("anime").update(updates).eq("id", anime_id).execute()
+    update_response = (
+        supabase.table("anime")
+        .update(updates)
+        .eq("id", anime_id)
+        .eq("user_id", user.id)
+        .execute()
+    )
     return jsonify(update_response.data[0])
 
 
 @app.route("/api/anime/<anime_id>", methods=["DELETE"])
 def delete_anime(anime_id):
-    response = supabase.table("anime").delete().eq("id", anime_id).execute()
+    user, err = require_user()
+    if err:
+        return err
+
+    response = (
+        supabase.table("anime")
+        .delete()
+        .eq("id", anime_id)
+        .eq("user_id", user.id)
+        .execute()
+    )
     if not response.data:
         return jsonify({"error": "Not found"}), 404
     return jsonify({"deleted": anime_id})
@@ -164,7 +261,11 @@ def delete_anime(anime_id):
 
 @app.route("/api/stats", methods=["GET"])
 def stats():
-    response = supabase.table("anime").select("*").execute()
+    user, err = require_user()
+    if err:
+        return err
+
+    response = supabase.table("anime").select("*").eq("user_id", user.id).execute()
     data = response.data
 
     total_shows = len(data)
@@ -198,13 +299,17 @@ def stats():
 
 @app.route("/api/recommend", methods=["POST"])
 def recommend():
+    user, err = require_user()
+    if err:
+        return err
+
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         return jsonify({
             "error": "No GROQ_API_KEY set. Add one to your .env file to unlock recommendations."
         }), 400
 
-    response = supabase.table("anime").select("*").execute()
+    response = supabase.table("anime").select("*").eq("user_id", user.id).execute()
     data = response.data
     if not data:
         return jsonify({
