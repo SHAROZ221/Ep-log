@@ -55,6 +55,7 @@ function renderList(data) {
     listEl.innerHTML = '<p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>';
     return;
   }
+  const tiers = ["S", "A", "B", "C"];
   const statusDisplay = {
     "watching": "ON AIR",
     "completed": "COMPLETE",
