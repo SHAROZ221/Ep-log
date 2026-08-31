@@ -5,7 +5,7 @@ A tiny webapp for the eternal problem: *"wait... which episode was I on?"*
 Track what you're watching, bump the episode counter with one click, and ask
 an LLM (via Groq) for what to watch next based on your list.
 
-![Ep. Log screenshot](screenshots/preview.png)
+![Ep. Log screenshot](screenshots/preview-v2.png)
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Flask](https://img.shields.io/badge/Flask-backend-black)
