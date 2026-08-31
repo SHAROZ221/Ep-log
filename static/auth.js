@@ -1,57 +1,26 @@
 const supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-const authBar = document.getElementById("auth-bar");
+const authTopbar = document.getElementById("auth-topbar");
+const authTopbarEmail = document.getElementById("auth-topbar-email");
+const authTopbarSignout = document.getElementById("auth-topbar-signout");
 const signedOutView = document.getElementById("signed-out-view");
 const appContent = document.getElementById("app-content");
 const googleSigninBtn = document.getElementById("google-signin-btn");
 
 let currentSession = null;
 
-function renderAuthBar(session) {
-  authBar.innerHTML = "";
-
-  let emailTag = document.getElementById("auth-email-tag");
-  let signoutBtn = document.getElementById("signout-btn");
+function applyAuthState(session) {
+  currentSession = session;
 
   if (session) {
     const email = session.user.email || "signed in";
-
-    if (!emailTag) {
-      emailTag = document.createElement("div");
-      emailTag.id = "auth-email-tag";
-      emailTag.className = "auth-email-tag";
-      document.body.appendChild(emailTag);
-    }
-    emailTag.textContent = email;
-    emailTag.style.display = "block";
-
-    if (!signoutBtn) {
-      signoutBtn = document.createElement("button");
-      signoutBtn.id = "signout-btn";
-      signoutBtn.className = "auth-signout-btn-fixed";
-      signoutBtn.textContent = "Eject";
-      signoutBtn.title = "Sign out";
-      document.body.appendChild(signoutBtn);
-    }
-    signoutBtn.style.display = "flex";
-    signoutBtn.onclick = async () => {
-      await supabaseClient.auth.signOut();
-    };
-  } else {
-    if (emailTag) emailTag.style.display = "none";
-    if (signoutBtn) signoutBtn.style.display = "none";
-  }
-}
-
-function applyAuthState(session) {
-  currentSession = session;
-  renderAuthBar(session);
-
-  if (session) {
+    authTopbarEmail.textContent = email;
+    authTopbar.style.display = "flex";
     signedOutView.style.display = "none";
     appContent.style.display = "grid";
     window.dispatchEvent(new CustomEvent("auth-ready"));
   } else {
+    authTopbar.style.display = "none";
     signedOutView.style.display = "block";
     appContent.style.display = "none";
   }
@@ -68,6 +37,10 @@ googleSigninBtn.addEventListener("click", async () => {
     provider: "google",
     options: { redirectTo: window.location.origin },
   });
+});
+
+authTopbarSignout.addEventListener("click", async () => {
+  await supabaseClient.auth.signOut();
 });
 
 supabaseClient.auth.onAuthStateChange((_event, session) => {

@@ -446,93 +446,51 @@ input:focus, select:focus, button:focus {
   .stat-block { flex: 1; min-width: 0; }
 }
 
-/* Auth UI */
-.auth-bar {
-  display: flex;
+/* Auth UI — compact topbar */
+.auth-topbar {
+  display: none;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.auth-email {
+  justify-content: space-between;
+  padding: 0.45rem 1.25rem;
+  background: var(--ink);
+  color: var(--paper);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.auth-signout-btn {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  background: none;
-  border: 1.5px solid var(--ink);
-  color: var(--ink);
-  padding: 0.3rem 0.6rem;
-  cursor: pointer;
-}
-
-.auth-signout-btn:hover { background: var(--ink); color: var(--paper); }
-
-.auth-signout-btn-fixed {
-  position: fixed;
-  top: 1.25rem;
-  left: 1.25rem;
+  position: sticky;
+  top: 0;
   z-index: 10;
-  width: 4.5rem;
-  height: 4.5rem;
-  border-radius: 50%;
-  font-family: 'Anton', sans-serif;
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  background: var(--crimson);
-  border: 3px solid var(--ink);
-  color: white;
-  cursor: pointer;
-  box-shadow: 4px 4px 0 var(--ink);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  line-height: 1.1;
-  transform: rotate(-9deg);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
 }
 
-.auth-signout-btn-fixed:hover {
-  transform: rotate(6deg) scale(1.08);
-  box-shadow: 6px 6px 0 var(--ink);
-  animation: wobble 0.4s ease;
-}
-
-.auth-signout-btn-fixed:active {
-  transform: rotate(-9deg) scale(0.92);
-  box-shadow: 1px 1px 0 var(--ink);
-}
-
-@keyframes wobble {
-  0% { transform: rotate(-9deg); }
-  30% { transform: rotate(10deg) scale(1.1); }
-  60% { transform: rotate(-4deg) scale(1.05); }
-  100% { transform: rotate(6deg) scale(1.08); }
-}
-
-.auth-email-tag {
-  position: fixed;
-  top: 5.9rem;
-  left: 1.25rem;
-  z-index: 10;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
-  color: var(--muted);
-  background: var(--paper);
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--muted);
-  display: none;
-  max-width: 9rem;
+.auth-topbar-email {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--muted);
+  max-width: 60%;
+}
+
+.auth-topbar-signout {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: none;
+  border: 1.5px solid var(--muted);
+  color: var(--paper);
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.auth-topbar-signout:hover {
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+.auth-topbar-signout:active {
+  background: var(--crimson);
+  color: white;
+  border-color: var(--crimson);
 }
 
 .signed-out-view {
