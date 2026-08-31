@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ep. Log — where'd I leave off?</title>
+<title>EP. LOG // 90s Anime Archive</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -15,86 +15,109 @@
 </head>
 <body>
 
+<!-- Film Grain / Cel Overlay -->
+<div class="film-cel-overlay" aria-hidden="true"></div>
+
+<!-- Auth Topbar -->
 <div id="auth-topbar" class="auth-topbar" style="display:none;">
-  <span id="auth-topbar-email" class="auth-topbar-email"></span>
-  <button id="auth-topbar-signout" class="auth-topbar-signout">sign out</button>
+  <div class="auth-user-info">
+    <span class="pilot-tag">PILOT ID //</span>
+    <span id="auth-topbar-email" class="auth-topbar-email"></span>
+  </div>
+  <button id="auth-topbar-signout" class="auth-topbar-signout">[ EJECT ⏏ ]</button>
 </div>
 
-<div class="halftone-overlay"></div>
-
+<!-- 90s Anime Cinematic Masthead -->
 <header class="masthead">
+  <div class="scene-tag">ACT. 01 // PERSONAL ARCHIVE // エピソード・ログ</div>
   <div class="masthead-inner">
     <h1 class="title">EP. LOG</h1>
-    <p class="tagline">"wait&hellip; which episode was I on?"</p>
+    <div class="japanese-title">エピソード・ログ</div>
+    <p class="tagline">"wait… which episode was I on?"</p>
   </div>
-  <div class="issue-tag">VOL. 01 &mdash; PERSONAL WATCHLIST</div>
+  <div class="film-stamp" id="vhs-clock">00:00:00</div>
 </header>
 
+<!-- Sign-In View -->
 <div id="signed-out-view" class="signed-out-view" style="display:none;">
   <div class="panel signin-panel">
-    <div class="panel-label">◆ SIGN IN</div>
-    <p class="recommend-copy">Sign in with Google to keep your own watchlist.</p>
-    <button id="google-signin-btn" class="btn btn-primary">Sign in with Google</button>
+    <div class="panel-label">◆ SYSTEM ACCESS // ログイン</div>
+    <p class="signin-copy">Insert cartridge to access your personal anime watchlist.</p>
+    <button id="google-signin-btn" class="btn btn-primary">▶ ENTER ARCHIVE</button>
   </div>
 </div>
 
+<!-- Claim Banner -->
 <div id="claim-banner" class="claim-banner" style="display:none;">
-  <span>Found older entries not linked to any account.</span>
-  <button id="claim-btn" class="btn btn-primary">Claim my old entries</button>
+  <span>⚠ Found unassigned legacy data in database cache.</span>
+  <button id="claim-btn" class="btn btn-accent">CLAIM DATA</button>
 </div>
 
+<!-- Main App -->
 <main class="grid" id="app-content" style="display:none;">
 
   <section class="panel panel-add">
-    <div class="panel-label">+ NEW ENTRY</div>
+    <div class="panel-label">+ LOG ENTRY // 新規登録</div>
     <form id="add-form" class="add-form">
-      <input type="text" id="f-title" placeholder="Anime Title" required>
+      <input type="text" id="f-title" placeholder="Anime Title (e.g. Cowboy Bebop, Akira)" required>
       <div class="row">
-        <input type="number" id="f-episode" placeholder="Ep. #" min="0" value="0">
+        <input type="number" id="f-episode" placeholder="Ep #" min="0" value="0">
         <select id="f-status">
-          <option value="watching">Watching</option>
-          <option value="on-hold">On hold</option>
-          <option value="plan-to-watch">Plan to watch</option>
-          <option value="completed">Completed</option>
-          <option value="dropped">Dropped</option>
+          <option value="watching">Watching (ON AIR)</option>
+          <option value="on-hold">On hold (STANDBY)</option>
+          <option value="plan-to-watch">Plan to watch (QUEUE)</option>
+          <option value="completed">Completed (COMPLETE)</option>
+          <option value="dropped">Dropped (ABORT)</option>
         </select>
       </div>
-      <input type="text" id="f-notes" placeholder="Notes (optional — 'cried at ep 12')">
-      <button type="submit" class="btn btn-primary">Add to log</button>
+      <input type="text" id="f-notes" placeholder="Log notes (e.g. 'cried at ep 12')">
+      <button type="submit" class="btn btn-primary">⏺ ADD TO ARCHIVE</button>
     </form>
   </section>
 
   <section class="panel panel-recommend">
-    <div class="panel-label">◆ WHAT NEXT?</div>
-    <p class="recommend-copy">Feed your list to Groq. Get 3 picks back.</p>
-    <button id="recommend-btn" class="btn btn-accent">Ask for a recommendation</button>
+    <div class="panel-label">◆ AI ADVISOR // 推薦システム</div>
+    <p class="recommend-copy">Scan your current watchlist. Generate 3 tailored anime recommendations.</p>
+    <button id="recommend-btn" class="btn btn-accent">⚡ CONSULT AI</button>
     <div id="recommend-output" class="recommend-output"></div>
   </section>
 
   <section class="panel panel-stats">
-    <div class="panel-label">▦ WATCH STATS</div>
-    <div id="stats-output" class="stats-output">Loading stats&hellip;</div>
+    <div class="panel-label">▦ MISSION STATS // 統計データ</div>
+    <div id="stats-output" class="stats-output">Analyzing archive data…</div>
   </section>
 
   <section class="panel panel-list">
-    <div class="panel-label">▤ CURRENTLY TRACKED</div>
+    <div class="panel-label">▤ CURRENT LOG // 記録一覧</div>
     <div class="type-filter">
-      <button class="type-filter-btn active" data-type="all">All</button>
-      <button class="type-filter-btn" data-type="TV">TV</button>
-      <button class="type-filter-btn" data-type="Movie">Movies</button>
+      <button class="type-filter-btn active" data-type="all">ALL TITLES</button>
+      <button class="type-filter-btn" data-type="TV">TV SERIES</button>
+      <button class="type-filter-btn" data-type="Movie">FILM / OVA</button>
     </div>
     <div id="anime-list" class="anime-list">
-      <p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>
+      <p class="empty-state">Archive is empty. Log your first anime above ↑</p>
     </div>
   </section>
 
 </main>
 
 <footer class="footer">
-  <span>no more "wait which episode was I on" energy</span>
+  <span>EP. LOG // 90s ANIME CHRONICLE // VOL. 01 // NO MORE "WHICH EPISODE" ENERGY</span>
 </footer>
 
 <script src="{{ url_for('static', filename='auth.js') }}"></script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+  function updateVhsClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    const el = document.getElementById('vhs-clock');
+    if (el) el.textContent = 'TC ' + h + ':' + m + ':' + s;
+  }
+  setInterval(updateVhsClock, 1000);
+  updateVhsClock();
+</script>
 </body>
 </html>

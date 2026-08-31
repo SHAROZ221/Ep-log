@@ -47,27 +47,34 @@ function renderList(data) {
     listEl.innerHTML = '<p class="empty-state">Nothing logged yet. Add your first anime up there ↑</p>';
     return;
   }
-  const tiers = ["S", "A", "B", "C"];
+  const statusDisplay = {
+    "watching": "ON AIR",
+    "completed": "COMPLETE",
+    "on-hold": "STANDBY",
+    "plan-to-watch": "QUEUE",
+    "dropped": "DROPPED"
+  };
+
   listEl.innerHTML = data.map(entry => `
     <div class="anime-card" data-id="${entry.id}">
-      <div class="ep-counter">EP ${entry.episode}</div>
+      <div class="ep-counter">EP ${String(entry.episode).padStart(2, '0')}</div>
       <div class="anime-info">
         <div class="anime-title-row">
           <div class="anime-title">${escapeHtml(entry.title)}</div>
-          <span class="type-badge">${entry.type || "TV"}</span>
+          <span class="type-badge">${entry.type === "Movie" ? "FILM" : "TV"}</span>
         </div>
         ${entry.genre
           ? `<div class="anime-genre">${escapeHtml(entry.genre)}</div>`
-          : `<button class="genre-refresh-btn" title="Look up genre">fetch genre</button>`}
+          : `<button class="genre-refresh-btn" title="Look up genre">► fetch genre</button>`}
         ${entry.notes ? `<div class="anime-notes">${escapeHtml(entry.notes)}</div>` : ""}
         <div class="tier-selector">
           ${tiers.map(t => `<button class="tier-btn tier-${t} ${entry.tier === t ? "active" : ""}" data-tier="${t}">${t}</button>`).join("")}
         </div>
       </div>
-      <div class="status-tag ${statusClass(entry.status)}">${entry.status}</div>
+      <div class="status-tag ${statusClass(entry.status)}">${statusDisplay[entry.status] || entry.status}</div>
       <div class="card-actions">
-        <button class="icon-btn btn-inc" title="Next episode">+1</button>
-        <button class="icon-btn btn-del" title="Remove">delete</button>
+        <button class="icon-btn btn-inc" title="Next episode">+1 EP</button>
+        <button class="icon-btn btn-del" title="Remove">DELETE</button>
       </div>
     </div>
   `).join("");
@@ -161,7 +168,7 @@ addForm.addEventListener("submit", async (e) => {
   const submitBtn = addForm.querySelector("button[type=submit]");
   const originalLabel = submitBtn.textContent;
   submitBtn.disabled = true;
-  submitBtn.textContent = "Looking up genre…";
+  submitBtn.textContent = "⏺ RECORDING…";
 
   try {
     await authFetch("/api/anime", {
@@ -190,7 +197,7 @@ listEl.addEventListener("click", async (e) => {
   }
 
   if (e.target.classList.contains("btn-inc")) {
-    const currentEp = parseInt(card.querySelector(".ep-counter").textContent.replace("EP ", ""), 10);
+    const currentEp = parseInt(card.querySelector(".ep-counter").textContent.replace(/[^0-9]/g, ""), 10) || 0;
     await authFetch(`/api/anime/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
