@@ -456,8 +456,6 @@ input:focus, select:focus, button:focus {
   color: var(--paper);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
-  position: sticky;
-  top: 0;
   z-index: 10;
 }
 
