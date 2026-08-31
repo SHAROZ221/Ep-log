@@ -80,10 +80,12 @@ function renderList(data) {
           ${tiers.map(t => `<button class="tier-btn tier-${t} ${entry.tier === t ? "active" : ""}" data-tier="${t}">${t}</button>`).join("")}
         </div>
       </div>
-      <div class="status-tag ${statusClass(entry.status)}">${statusDisplay[entry.status] || entry.status}</div>
-      <div class="card-actions">
-        <button class="icon-btn btn-inc" title="Next episode">+1 EP</button>
-        <button class="icon-btn btn-del" title="Remove">DELETE</button>
+      <div class="card-footer">
+        <div class="status-tag ${statusClass(entry.status)}">${statusDisplay[entry.status] || entry.status}</div>
+        <div class="card-actions">
+          <button class="icon-btn btn-inc" title="Next episode">+1 EP</button>
+          <button class="icon-btn btn-del" title="Remove">DELETE</button>
+        </div>
       </div>
     </div>
   `).join("");
