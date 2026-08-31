@@ -439,11 +439,160 @@ input:focus, select:focus, button:focus {
 }
 
 @media (max-width: 680px) {
-  .grid { grid-template-columns: 1fr; }
-  .anime-card { grid-template-columns: auto 1fr; row-gap: 0.5rem; }
-  .card-actions { grid-column: 1 / -1; justify-content: flex-end; }
-  .stats-row { gap: 1rem; }
-  .stat-block { flex: 1; min-width: 0; }
+  /* Layout — single column, more breathing room */
+  .grid {
+    grid-template-columns: 1fr;
+    padding: 1.25rem 1rem 2rem;
+    gap: 1rem;
+  }
+
+  /* Panels — reduce shadow so it doesn't clip at viewport edge */
+  .panel {
+    box-shadow: 4px 4px 0 var(--ink);
+    padding: 1rem;
+  }
+
+  /* Anime cards — fully stacked vertical layout */
+  .anime-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1rem 0;
+  }
+
+  /* Top row: ep counter + title + type badge side by side */
+  .anime-card .ep-counter {
+    align-self: flex-start;
+  }
+
+  .anime-title-row {
+    flex-wrap: wrap;
+  }
+
+  /* Status tag — full width row */
+  .status-tag {
+    align-self: flex-start;
+  }
+
+  /* Actions row — spread across bottom */
+  .card-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  /* Bigger touch targets — icon buttons */
+  .icon-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.85rem;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Bigger touch targets — tier buttons */
+  .tier-btn {
+    width: 2.2rem;
+    height: 2.2rem;
+    line-height: 2.2rem;
+    font-size: 0.85rem;
+  }
+
+  /* Bigger touch targets — type filter */
+  .type-filter-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  /* Bigger touch targets — main buttons */
+  .btn {
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  /* Form inputs — more padding for fat fingers */
+  input, select {
+    font-size: 1rem;
+    padding: 0.75rem 0.8rem;
+  }
+
+  /* Stats — stack on very narrow, flex on medium */
+  .stats-row {
+    gap: 0.75rem;
+  }
+
+  .stat-block {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  /* Status bars — narrower label column */
+  .status-bar-row {
+    grid-template-columns: 5.5rem 1fr 2rem;
+    gap: 0.4rem;
+  }
+
+  .status-bar-label {
+    font-size: 0.65rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Genre refresh button — bigger tap target */
+  .genre-refresh-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  /* Masthead — tighter on mobile */
+  .masthead {
+    padding: 1.75rem 1rem 1rem;
+  }
+
+  /* Signed-out view — less margin */
+  .signed-out-view {
+    margin: 2rem auto;
+  }
+
+  /* Claim banner */
+  .claim-banner {
+    margin: 0 0.5rem 1rem;
+    font-size: 0.75rem;
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Extra small screens (320px) */
+@media (max-width: 380px) {
+  .stat-block {
+    flex: 1 1 100%;
+  }
+
+  .stats-row {
+    flex-direction: column;
+  }
+
+  .status-bar-row {
+    grid-template-columns: 4.5rem 1fr 1.5rem;
+  }
+
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .auth-topbar {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.75rem;
+  }
 }
 
 /* Auth UI — compact topbar */
