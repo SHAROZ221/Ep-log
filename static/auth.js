@@ -11,25 +11,26 @@ let currentSession = null;
 
 function applyAuthState(session) {
   currentSession = session;
+  window.__currentSession = session;
 
   if (session) {
     const email = session.user.email || "signed in";
-    authTopbarEmail.textContent = email;
-    authTopbar.style.display = "flex";
-    signedOutView.style.display = "none";
-    appContent.style.display = "grid";
-    window.dispatchEvent(new CustomEvent("auth-ready"));
+    if (authTopbarEmail) authTopbarEmail.textContent = email;
+    if (authTopbar) authTopbar.style.display = "flex";
+    if (signedOutView) signedOutView.style.display = "none";
+    if (appContent) appContent.style.display = "grid";
+    window.dispatchEvent(new CustomEvent("auth-ready", { detail: session }));
   } else {
-    authTopbar.style.display = "none";
-    signedOutView.style.display = "block";
-    appContent.style.display = "none";
+    if (authTopbar) authTopbar.style.display = "none";
+    if (signedOutView) signedOutView.style.display = "block";
+    if (appContent) appContent.style.display = "none";
   }
 }
 
 /** Returns the current access token, or null if not signed in. Used by
  * script.js to attach Authorization headers to API calls. */
 function getAccessToken() {
-  return currentSession ? currentSession.access_token : null;
+  return currentSession ? currentSession.access_token : (window.__currentSession ? window.__currentSession.access_token : null);
 }
 
 googleSigninBtn.addEventListener("click", async () => {

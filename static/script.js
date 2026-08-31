@@ -23,10 +23,18 @@ async function authFetch(url, options = {}) {
 }
 
 async function loadAnime() {
-  const res = await authFetch("/api/anime");
-  const data = await res.json();
-  currentAnimeData = data;
-  renderList(applyTypeFilter(data));
+  try {
+    const res = await authFetch("/api/anime");
+    if (!res.ok) {
+      console.warn("loadAnime response not ok:", res.status);
+      return;
+    }
+    const data = await res.json();
+    currentAnimeData = Array.isArray(data) ? data : [];
+    renderList(applyTypeFilter(currentAnimeData));
+  } catch (err) {
+    console.error("Failed to load anime list:", err);
+  }
 }
 
 function applyTypeFilter(data) {
@@ -272,14 +280,25 @@ claimBtn.addEventListener("click", async () => {
   }
 });
 
-// Wait for auth.js to confirm a signed-in session before loading any data.
-window.addEventListener("auth-ready", async () => {
-  refreshAll();
+async function initData() {
+  await refreshAll();
   try {
     const res = await authFetch("/api/legacy-count");
-    const data = await res.json();
-    claimBanner.style.display = data.count > 0 ? "flex" : "none";
+    if (res.ok) {
+      const data = await res.json();
+      if (claimBanner) claimBanner.style.display = data.count > 0 ? "flex" : "none";
+    }
   } catch (err) {
-    claimBanner.style.display = "none";
+    if (claimBanner) claimBanner.style.display = "none";
   }
+}
+
+// Wait for auth.js to confirm a signed-in session before loading any data.
+window.addEventListener("auth-ready", () => {
+  initData();
 });
+
+// Also trigger immediately if session is already active
+if (typeof getAccessToken === "function" && getAccessToken()) {
+  initData();
+}
