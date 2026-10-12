@@ -1,7 +1,5 @@
 const listEl = document.getElementById("anime-list");
 const addForm = document.getElementById("add-form");
-const recommendBtn = document.getElementById("recommend-btn");
-const recommendOutput = document.getElementById("recommend-output");
 const statsOutput = document.getElementById("stats-output");
 const typeFilterButtons = document.querySelectorAll(".type-filter-btn");
 const claimBanner = document.getElementById("claim-banner");
@@ -243,29 +241,6 @@ listEl.addEventListener("click", async (e) => {
   }
 });
 
-recommendBtn.addEventListener("click", async () => {
-  recommendOutput.className = "recommend-output loading";
-  recommendOutput.textContent = "Thinking about what you'd like next…";
-  recommendBtn.disabled = true;
-
-  try {
-    const res = await authFetch("/api/recommend", { method: "POST" });
-    const data = await res.json();
-
-    if (!res.ok) {
-      recommendOutput.className = "recommend-output error";
-      recommendOutput.textContent = data.error || "Something went wrong.";
-    } else {
-      recommendOutput.className = "recommend-output";
-      recommendOutput.textContent = data.recommendation;
-    }
-  } catch (err) {
-    recommendOutput.className = "recommend-output error";
-    recommendOutput.textContent = "Couldn't reach the server. Is app.py running?";
-  } finally {
-    recommendBtn.disabled = false;
-  }
-});
 
 claimBtn.addEventListener("click", async () => {
   claimBtn.disabled = true;
@@ -304,4 +279,318 @@ window.addEventListener("auth-ready", () => {
 // Also trigger immediately if session is already active
 if (typeof getAccessToken === "function" && getAccessToken()) {
   initData();
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// AI CHATBOT ENGINE
+// ══════════════════════════════════════════════════════════════════════
+
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const chatSend = document.getElementById("chat-send");
+const personalitySelect = document.getElementById("personality-select");
+const spoilerToggle = document.getElementById("spoiler-toggle");
+const chatClearBtn = document.getElementById("chat-clear");
+const quickBtns = document.querySelectorAll(".quick-btn");
+const copilotToggleBtn = document.getElementById("copilot-toggle-btn");
+const copilotCloseBtn = document.getElementById("copilot-close-btn");
+const copilotDrawer = document.getElementById("copilot-drawer");
+const copilotBackdrop = document.getElementById("copilot-backdrop");
+const openCopilotShortcut = document.getElementById("open-copilot-shortcut");
+
+let chatHistory = [];
+let spoilerGuard = true;
+let chatBusy = false;
+
+// ── Drawer Open/Close Mechanics ──
+function openCopilot() {
+  if (copilotDrawer) {
+    copilotDrawer.classList.add("active");
+    copilotDrawer.setAttribute("aria-hidden", "false");
+  }
+  if (copilotBackdrop) copilotBackdrop.classList.add("active");
+  if (copilotToggleBtn) copilotToggleBtn.classList.add("drawer-open");
+  setTimeout(() => {
+    if (chatInput) chatInput.focus();
+    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+  }, 150);
+}
+
+function closeCopilot() {
+  if (copilotDrawer) {
+    copilotDrawer.classList.remove("active");
+    copilotDrawer.setAttribute("aria-hidden", "true");
+  }
+  if (copilotBackdrop) copilotBackdrop.classList.remove("active");
+  if (copilotToggleBtn) copilotToggleBtn.classList.remove("drawer-open");
+}
+
+function toggleCopilot() {
+  if (copilotDrawer && copilotDrawer.classList.contains("active")) {
+    closeCopilot();
+  } else {
+    openCopilot();
+  }
+}
+
+if (copilotToggleBtn) copilotToggleBtn.addEventListener("click", toggleCopilot);
+if (copilotCloseBtn) copilotCloseBtn.addEventListener("click", closeCopilot);
+if (copilotBackdrop) copilotBackdrop.addEventListener("click", closeCopilot);
+if (openCopilotShortcut) openCopilotShortcut.addEventListener("click", openCopilot);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && copilotDrawer && copilotDrawer.classList.contains("active")) {
+    closeCopilot();
+  }
+});
+
+
+// ── Persistence (localStorage) ──
+function loadChatHistory() {
+  try {
+    const saved = localStorage.getItem("eplog_chat_history_v1");
+    if (saved) {
+      chatHistory = JSON.parse(saved);
+      renderChatMessages();
+    }
+  } catch (_) {
+    chatHistory = [];
+  }
+}
+
+function saveChatHistory() {
+  try {
+    // Keep last 40 messages to avoid browser storage quotas
+    localStorage.setItem("eplog_chat_history_v1", JSON.stringify(chatHistory.slice(-40)));
+  } catch (_) {
+    // quota exceeded — silently ignore
+  }
+}
+
+// ── Markdown-ish Formatter ──
+function formatAiMessage(text) {
+  if (!text) return "";
+  let clean = escapeHtml(text);
+  // Bold **text**
+  clean = clean.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Italic *text*
+  clean = clean.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  // Bullet points
+  clean = clean.replace(/^[\*\-]\s+(.+)$/gm, "<li>$1</li>");
+  clean = clean.replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>");
+  // Numbered list items
+  clean = clean.replace(/^(\d+)\.\s+(.+)$/gm, "<div class='list-num-item'><span class='num-bullet'>$1.</span> $2</div>");
+  // Line breaks
+  clean = clean.replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+  return clean;
+}
+
+function renderChatMessages() {
+  if (!chatMessages) return;
+  if (!chatHistory || chatHistory.length === 0) {
+    chatMessages.innerHTML = `
+      <div class="chat-welcome">
+        <div class="chat-welcome-icon">🤖</div>
+        <p class="chat-welcome-title">AI ANIME COPILOT ONLINE</p>
+        <p class="chat-welcome-copy">Ask for recommendations, character debates, franchise watch orders, or tap any quick action above.</p>
+        <p class="chat-welcome-tip">💡 <em>Tip: You can say "Add Steins;Gate" and I'll log it straight to your archive!</em></p>
+      </div>`;
+    return;
+  }
+
+  chatMessages.innerHTML = chatHistory
+    .map((msg) => {
+      if (msg.role === "user") {
+        return `
+          <div class="chat-bubble chat-user">
+            <div class="chat-bubble-content">${escapeHtml(msg.content)}</div>
+          </div>
+        `;
+      }
+      const addedNotice =
+        msg.auto_added && msg.auto_added.length
+          ? `<div class="chat-auto-added">⚡ LOGGED TO ARCHIVE: <strong>${msg.auto_added.map(escapeHtml).join(", ")}</strong> (Queue status: Plan-to-watch)</div>`
+          : "";
+      return `
+        <div class="chat-bubble chat-ai">
+          <div class="chat-bubble-label">AI ADVISOR // 応答</div>
+          <div class="chat-bubble-content">${formatAiMessage(msg.content)}</div>
+          ${addedNotice}
+        </div>
+      `;
+    })
+    .join("");
+
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// ── Send Chat Message ──
+async function sendChatMessage(message, action = null, mood = null) {
+  if (chatBusy || !message || !message.trim()) return;
+  chatBusy = true;
+
+  const userText = message.trim();
+  chatHistory.push({ role: "user", content: userText });
+  renderChatMessages();
+
+  // Insert retro typing indicator
+  const typingEl = document.createElement("div");
+  typingEl.className = "chat-bubble chat-ai chat-typing";
+  typingEl.innerHTML = `
+    <div class="chat-bubble-label">SCANNING ARCHIVE…</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  `;
+  chatMessages.appendChild(typingEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  if (chatInput) chatInput.value = "";
+  if (chatSend) {
+    chatSend.disabled = true;
+    chatSend.textContent = "…";
+  }
+
+  try {
+    const personality = personalitySelect ? personalitySelect.value : "mentor";
+    const res = await authFetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userText,
+        history: chatHistory.slice(0, -1),
+        personality: personality,
+        spoiler_guard: spoilerGuard,
+        action: action,
+        mood: mood,
+      }),
+    });
+
+    const data = await res.json();
+    typingEl.remove();
+
+    if (!res.ok) {
+      chatHistory.push({
+        role: "assistant",
+        content: `⚠️ Mission Warning: ${data.error || "Communication signal lost."}`,
+      });
+    } else {
+      const entry = { role: "assistant", content: data.response };
+      if (data.auto_added && data.auto_added.length > 0) {
+        entry.auto_added = data.auto_added;
+        // Refresh anime watchlist and mission stats live!
+        refreshAll();
+      }
+      chatHistory.push(entry);
+    }
+  } catch (err) {
+    typingEl.remove();
+    chatHistory.push({
+      role: "assistant",
+      content: "⚠️ Failed to transmit to server. Ensure app.py is running on port 5000.",
+    });
+  } finally {
+    chatBusy = false;
+    if (chatSend) {
+      chatSend.disabled = false;
+      chatSend.textContent = "▶ SEND";
+    }
+    renderChatMessages();
+    saveChatHistory();
+  }
+}
+
+// ── Chat Input Listeners ──
+if (chatSend) {
+  chatSend.addEventListener("click", () => {
+    if (chatInput) sendChatMessage(chatInput.value);
+  });
+}
+
+if (chatInput) {
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage(chatInput.value);
+    }
+  });
+}
+
+// ── Spoiler Guard Toggle ──
+if (spoilerToggle) {
+  spoilerToggle.addEventListener("click", () => {
+    spoilerGuard = !spoilerGuard;
+    spoilerToggle.classList.toggle("spoiler-on", spoilerGuard);
+    spoilerToggle.classList.toggle("spoiler-off", !spoilerGuard);
+    spoilerToggle.innerHTML = spoilerGuard
+      ? "🛡️ GUARD: ON"
+      : "⚠️ SPOILERS OK";
+  });
+}
+
+// ── Clear Chat ──
+if (chatClearBtn) {
+  chatClearBtn.addEventListener("click", () => {
+    chatHistory = [];
+    localStorage.removeItem("eplog_chat_history_v1");
+    renderChatMessages();
+  });
+}
+
+// ── Personality Selection Persistence ──
+if (personalitySelect) {
+  const savedPersona = localStorage.getItem("eplog_personality");
+  if (savedPersona) personalitySelect.value = savedPersona;
+  personalitySelect.addEventListener("change", () => {
+    localStorage.setItem("eplog_personality", personalitySelect.value);
+  });
+}
+
+// ── Quick Actions ──
+quickBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const action = btn.dataset.action;
+    const mood = btn.dataset.mood || null;
+    const customPrompt = chatInput ? chatInput.value.trim() : "";
+
+    const moodPrompts = {
+      sad: "I'm in a melancholy mood 😢 — recommend an anime that hits hard emotionally or offers comfort.",
+      hype: "I need pure adrenaline and HYPE! 🔥 What should I watch right now?",
+      chill: "Give me something ultra chill and relaxing to wind down with 🌊",
+      think: "Recommend a mind-bending, philosophical, or psychological thriller that will make me think 🧠",
+    };
+
+    let msg = "";
+    if (action === "mood") {
+      msg = moodPrompts[mood] || "Recommend an anime to match my mood!";
+    } else if (action === "roast") {
+      msg = "Roast my anime watchlist! Give me your most brutally funny critique 📊";
+    } else if (action === "quiz") {
+      msg = "Quiz me! Generate an anime trivia challenge based on my archive 🧩";
+    } else if (action === "hidden_gem") {
+      msg = "Find me 3 hidden gems or underrated anime that match my taste 💎";
+    } else if (action === "vibe_check") {
+      msg = "Do a comprehensive VIBE CHECK on my taste based on my logged anime 🪞";
+    } else if (action === "insights") {
+      msg = "Analyze my archive and give me strategic insights: priorities, blindspots, and patterns 🌟";
+    } else if (action === "compare") {
+      msg = customPrompt
+        ? `Compare: ${customPrompt} ⚔️`
+        : "Compare two standout anime from my list (or suggest two iconic rivals to compare) ⚔️";
+    } else if (action === "watch_order") {
+      msg = customPrompt
+        ? `What is the definitive watch order for ${customPrompt}? 📋`
+        : "Explain the definitive watch order for a complex franchise (like Fate, Monogatari, or Gundam) 📋";
+    }
+
+    sendChatMessage(msg, action === "mood" ? null : action, mood);
+  });
+});
+
+// Load saved history on auth or ready
+window.addEventListener("auth-ready", () => {
+  loadChatHistory();
+});
+
+if (typeof getAccessToken === "function" && getAccessToken()) {
+  loadChatHistory();
 }

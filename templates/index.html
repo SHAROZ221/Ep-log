@@ -57,7 +57,10 @@
 <main class="grid" id="app-content" style="display:none;">
 
   <section class="panel panel-add">
-    <div class="panel-label">+ LOG ENTRY </div>
+    <div class="panel-label-row">
+      <div class="panel-label">+ LOG ENTRY</div>
+      <button type="button" id="open-copilot-shortcut" class="copilot-pill-shortcut" title="Open AI Anime Copilot">⚡ CONSULT COPILOT 🤖</button>
+    </div>
     <form id="add-form" class="add-form">
       <input type="text" id="f-title" placeholder="Anime Title (e.g. Cowboy Bebop, Akira)" required>
       <div class="row">
@@ -75,12 +78,7 @@
     </form>
   </section>
 
-  <section class="panel panel-recommend">
-    <div class="panel-label">◆ AI ADVISOR </div>
-    <p class="recommend-copy">Scan your current watchlist. Generate 3 tailored anime recommendations.</p>
-    <button id="recommend-btn" class="btn btn-accent">⚡ CONSULT AI</button>
-    <div id="recommend-output" class="recommend-output"></div>
-  </section>
+
 
   <section class="panel panel-stats">
     <div class="panel-label">▦ MISSION STATS  </div>
@@ -100,6 +98,78 @@
   </section>
 
 </main>
+
+<!-- Floating AI Copilot Launcher -->
+<div id="copilot-launcher" class="copilot-launcher">
+  <button id="copilot-toggle-btn" class="copilot-toggle-btn" aria-label="Open AI Anime Copilot" title="Open AI Anime Copilot">
+    <span class="copilot-icon">🤖</span>
+    <span class="copilot-btn-text">AI COPILOT</span>
+    <span class="copilot-status-dot"></span>
+  </button>
+</div>
+
+<!-- Backdrop Overlay for Copilot Drawer -->
+<div id="copilot-backdrop" class="copilot-backdrop"></div>
+
+<!-- Floating Slide-out Copilot Drawer -->
+<aside id="copilot-drawer" class="copilot-drawer" aria-hidden="true">
+  <div class="copilot-drawer-header">
+    <div class="copilot-title-group">
+      <div class="copilot-header-avatar">🤖</div>
+      <div class="copilot-header-info">
+        <div class="copilot-header-title">ANIME COPILOT</div>
+        <div class="copilot-header-sub">90s AI Advisor // 支援AI</div>
+      </div>
+    </div>
+    <div class="copilot-header-controls">
+      <button id="chat-clear" class="copilot-tool-btn" title="Clear chat history">🗑️</button>
+      <button id="copilot-close-btn" class="copilot-tool-btn copilot-close-btn" title="Close Copilot (Esc)">✕</button>
+    </div>
+  </div>
+
+  <div class="copilot-settings-bar">
+    <div class="chat-personality">
+      <select id="personality-select" title="Choose AI Personality">
+        <option value="mentor">🥊 Shonen Mentor</option>
+        <option value="bestie">🍵 Slice-of-Life Bestie</option>
+        <option value="analyst">⚙️ Mecha Analyst</option>
+        <option value="villain">😈 Villain Monologuer</option>
+      </select>
+    </div>
+    <button id="spoiler-toggle" class="spoiler-toggle spoiler-on" title="Toggle spoiler guard">
+      🛡️ GUARD: ON
+    </button>
+  </div>
+
+  <!-- Quick Action Chips (Smooth horizontal scroll) -->
+  <div class="chat-quick-actions">
+    <button class="quick-btn" data-action="mood" data-mood="sad">😢 Sad</button>
+    <button class="quick-btn" data-action="mood" data-mood="hype">🔥 Hype</button>
+    <button class="quick-btn" data-action="mood" data-mood="chill">🌊 Chill</button>
+    <button class="quick-btn" data-action="mood" data-mood="think">🧠 Think</button>
+    <button class="quick-btn highlight-btn" data-action="roast">📊 Roast Me</button>
+    <button class="quick-btn" data-action="quiz">🧩 Quiz Me</button>
+    <button class="quick-btn" data-action="hidden_gem">💎 Hidden Gems</button>
+    <button class="quick-btn" data-action="vibe_check">🪞 Vibe Check</button>
+    <button class="quick-btn" data-action="insights">🌟 Insights</button>
+    <button class="quick-btn" data-action="compare">⚔️ Compare</button>
+    <button class="quick-btn" data-action="watch_order">📋 Watch Order</button>
+  </div>
+
+  <div id="chat-messages" class="chat-messages">
+    <div class="chat-welcome">
+      <div class="chat-welcome-icon">🤖</div>
+      <p class="chat-welcome-title">AI ANIME COPILOT ONLINE</p>
+      <p class="chat-welcome-copy">Ask for recommendations, character debates, franchise watch orders, or tap any quick action above.</p>
+      <p class="chat-welcome-tip">💡 <em>Tip: You can say "Add Steins;Gate" and I'll log it straight to your archive!</em></p>
+    </div>
+  </div>
+
+  <div class="chat-input-area">
+    <input type="text" id="chat-input" placeholder="Ask about anime, recs, watch orders..." autocomplete="off" />
+    <button id="chat-send" class="btn btn-primary chat-send-btn">▶</button>
+  </div>
+</aside>
 
 <footer class="footer">
   <span>EP. LOG // 90s ANIME CHRONICLE // VOL. 01 // NO MORE "WHICH EPISODE" ENERGY</span>
