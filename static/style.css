@@ -22,6 +22,11 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -681,23 +686,39 @@ select option {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 1.5rem;
+  padding: 0.6rem 1.5rem;
   background: #14151e;
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 0.8rem;
   border-bottom: 2px solid var(--surface-border);
   z-index: 10;
+  gap: 1rem;
+}
+
+.auth-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .pilot-tag {
   color: var(--anime-yellow);
+  font-family: var(--font-mono);
   font-weight: 700;
-  margin-right: 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .auth-topbar-email {
   color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -705,19 +726,33 @@ select option {
 
 .auth-topbar-signout {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  background: none;
-  border: 1px solid var(--text-muted);
+  letter-spacing: 0.06em;
+  background: var(--surface);
+  border: 1.5px solid var(--surface-border);
   color: var(--text-muted);
-  padding: 0.35rem 0.85rem;
+  padding: 0.4rem 0.85rem;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 2px 2px 0 rgba(10, 12, 18, 0.6);
   transition: all 0.15s ease;
 }
 
 .auth-topbar-signout:hover {
   border-color: var(--anime-red);
   color: var(--anime-red);
+  background: #1f2231;
+}
+
+.auth-topbar-signout:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 rgba(10, 12, 18, 0.6);
 }
 
 /* ── Sign-In View ── */
@@ -1338,33 +1373,68 @@ select option {
   font-size: 0.85rem;
 }
 
-/* ── Mobile Responsive (Phones & Small Screens) ── */
+/* ── Mobile & Tablet Responsive Engine ── */
+
+/* 1. Medium Screens & Tablets (max-width: 860px) */
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+    padding: 1.25rem 1rem 3.5rem;
+    gap: 1.25rem;
+  }
+}
+
+/* 2. Mobile Phones (max-width: 680px) */
 @media (max-width: 680px) {
   .grid {
     grid-template-columns: 1fr;
-    padding: 1rem 0.75rem 2.5rem;
+    padding: 1rem 0.75rem 3.5rem;
     gap: 1rem;
   }
 
+  /* Masthead / Header */
   .masthead {
-    padding: 1.5rem 1rem 1.25rem;
+    padding: 1.35rem 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .scene-tag {
+    position: static;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.25rem;
   }
 
   .title {
     font-size: 2.25rem;
+    line-height: 0.95;
+    text-shadow:
+      2px 2px 0 var(--anime-red),
+      -1px -1px 0 var(--anime-cyan);
   }
 
-  .scene-tag {
-    font-size: 0.55rem;
+  .japanese-title {
+    font-size: 0.68rem;
+    letter-spacing: 0.25em;
+    margin-top: 0.25rem;
+  }
+
+  .tagline {
+    font-size: 0.75rem;
+    margin-top: 0.35rem;
   }
 
   .film-stamp {
     position: static;
-    margin-top: 0.65rem;
-    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
     display: inline-block;
   }
 
+  /* Panels */
   .panel {
     padding: 1rem;
     box-shadow: 3px 3px 0 rgba(10, 12, 18, 0.6);
@@ -1372,43 +1442,105 @@ select option {
 
   .panel-label {
     font-size: 0.7rem;
-    margin-bottom: 0.85rem;
   }
 
-  /* Segmented Type Filter Bar — full width on mobile */
+  .panel-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .copilot-pill-shortcut {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.55rem;
+  }
+
+  /* Forms inside Log Entry */
+  .add-form {
+    gap: 0.6rem;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  #f-episode {
+    width: 5.2rem;
+    flex-shrink: 0;
+  }
+
+  #f-status {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+  }
+
+  input, select {
+    font-size: 0.95rem;
+    padding: 0.65rem 0.75rem;
+    min-height: 2.65rem;
+  }
+
+  .btn {
+    padding: 0.8rem 1rem;
+    font-size: 0.82rem;
+    width: 100%;
+  }
+
+  /* Segmented Type Filter Bar */
   .type-filter {
     display: flex;
     width: 100%;
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
   }
 
   .type-filter-btn {
     flex: 1;
     text-align: center;
-    padding: 0.65rem 0.35rem;
-    font-size: 0.65rem;
+    padding: 0.6rem 0.25rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  /* Anime Cards — Structured 3-Row Mobile Layout */
+  /* Anime Cards — Clean 2-Column Grid on Mobile (No Collapsing) */
   .anime-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.95rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "counter info"
+      "footer footer";
+    gap: 0.65rem 0.85rem;
+    align-items: start;
+    padding: 0.9rem;
     box-shadow: 3px 3px 0 rgba(10, 12, 18, 0.5);
   }
 
-  /* Header inside card: Ep counter + Title side-by-side */
   .anime-card .ep-counter {
-    align-self: flex-start;
-    font-size: 1.25rem;
-    min-width: 3.5rem;
-    padding: 0.25rem 0.5rem;
+    grid-area: counter;
+    font-size: 1.2rem;
+    min-width: 3.6rem;
+    padding: 0.3rem 0.5rem;
+    align-self: start;
+  }
+
+  .anime-info {
+    grid-area: info;
+    min-width: 0;
   }
 
   .anime-info .anime-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
     line-height: 1.3;
+    word-break: break-word;
   }
 
   .anime-title-row {
@@ -1420,92 +1552,111 @@ select option {
 
   .type-badge {
     font-size: 0.6rem;
-    padding: 0.05rem 0.35rem;
+    padding: 0.08rem 0.35rem;
+    flex-shrink: 0;
   }
 
-  /* Bottom Row inside card: Status Tag (Left) + Action Buttons (Right) */
-  .anime-card > .status-tag,
-  .anime-card > .card-actions {
-    margin-top: 0;
+  .anime-info .anime-genre {
+    font-size: 0.72rem;
+    margin-top: 0.2rem;
+    word-break: break-word;
   }
 
-  .card-footer-mobile {
+  .anime-info .anime-notes {
+    font-size: 0.72rem;
+    margin-top: 0.25rem;
+    word-break: break-word;
+  }
+
+  .tier-selector {
+    display: flex;
+    gap: 0.35rem;
+    margin-top: 0.45rem;
+  }
+
+  .tier-btn {
+    width: 2rem;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 0.85rem;
+  }
+
+  /* Card Footer (Status Tag & Actions) */
+  .card-footer {
+    grid-area: footer;
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding-top: 0.4rem;
+    padding-top: 0.65rem;
+    margin-top: 0.2rem;
     border-top: 1px dashed var(--surface-border);
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
-  /* Touch Targets — Tier Buttons */
-  .tier-selector {
-    gap: 0.35rem;
-    margin-top: 0.5rem;
+  .card-footer .status-tag {
+    font-size: 0.68rem;
+    padding: 0.3rem 0.55rem;
+    flex-shrink: 0;
   }
 
-  .tier-btn {
-    width: 2.2rem;
-    height: 2.2rem;
-    line-height: 2.2rem;
-    font-size: 0.9rem;
-  }
-
-  /* Touch Targets — Action Buttons */
   .card-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    align-items: center;
+    margin-left: auto;
   }
 
   .icon-btn {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.75rem;
-    min-height: 2.5rem;
-    display: flex;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.72rem;
+    min-height: 2.2rem;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   }
 
-  /* Form controls — iOS zoom prevention */
-  .btn {
-    padding: 0.85rem 1rem;
-    font-size: 0.85rem;
-    width: 100%;
-  }
-
-  input, select {
-    font-size: 1rem;
-    padding: 0.75rem 0.85rem;
-    min-height: 2.75rem;
-  }
-
-  /* Stats Section — Clean responsive flex */
+  /* Mission Stats Section */
   .stats-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   .stat-block {
     min-width: 0;
     padding: 0.65rem 0.35rem;
+    box-shadow: 2px 2px 0 rgba(10, 12, 18, 0.5);
   }
 
   .stat-value {
-    font-size: 1.85rem;
+    font-size: 1.75rem;
   }
 
   .stat-label {
-    font-size: 0.55rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    margin-top: 0.25rem;
+  }
+
+  .status-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .status-bar-row {
-    grid-template-columns: 5.5rem 1fr 2rem;
-    gap: 0.45rem;
+    display: grid;
+    grid-template-columns: 6.2rem 1fr 2rem;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .status-bar-label {
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1515,26 +1666,82 @@ select option {
     height: 0.95rem;
   }
 
-  .signed-out-view {
-    margin: 2rem auto;
-  }
-
-  .claim-banner {
-    margin: 0 0.5rem 1.25rem;
-    flex-direction: column;
-    text-align: center;
+  .status-bar-count {
     font-size: 0.8rem;
   }
 
+  .genre-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .genre-pill {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .signed-out-view {
+    margin: 2rem auto;
+    padding: 0 0.85rem;
+  }
+
+  .claim-banner {
+    margin: 0 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.65rem;
+    font-size: 0.78rem;
+  }
+
   .auth-topbar {
-    padding: 0.5rem 1rem;
+    padding: 0.55rem 0.85rem;
     font-size: 0.75rem;
+    gap: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .auth-user-info {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.15rem;
+    overflow: hidden;
+  }
+
+  .pilot-tag {
+    font-size: 0.62rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+  }
+
+  .auth-topbar-email {
+    font-size: 0.74rem;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .auth-topbar-signout {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+    line-height: 1;
   }
 
   /* Copilot Mobile Drawer & Launcher */
   .copilot-launcher {
     bottom: 1.25rem;
     right: 1.25rem;
+    z-index: 1000;
   }
 
   .copilot-toggle-btn {
@@ -1547,50 +1754,153 @@ select option {
     display: none;
   }
 
+  .copilot-icon {
+    font-size: 1.35rem;
+  }
+
   .copilot-drawer {
     bottom: 0;
     right: 0;
-    width: 100vw;
+    left: 0;
+    width: 100%;
     max-width: 100vw;
-    height: 85vh;
-    max-height: 85vh;
+    height: 85dvh;
+    max-height: 85dvh;
+    border-radius: 14px 14px 0 0;
+    border-left: none;
+    border-right: none;
     border-bottom: none;
+    border-top: 2px solid var(--anime-cyan);
     transform: translateY(110%);
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.85);
   }
 
   .copilot-drawer.active {
     transform: translateY(0);
   }
 
-  .chat-bubble {
-    max-width: 92%;
-    font-size: 0.8rem;
-  }
-}
-
-/* Extra Small Screens (320px - 360px) */
-@media (max-width: 380px) {
-  .stats-row {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+  .copilot-drawer-header {
+    padding: 0.8rem 1rem;
   }
 
-  .status-bar-row {
-    grid-template-columns: 4.5rem 1fr 1.5rem;
+  .copilot-header-avatar {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.1rem;
   }
 
-  .title {
-    font-size: 1.85rem;
+  .copilot-header-title {
+    font-size: 1.15rem;
   }
 
-  .japanese-title {
+  .copilot-settings-bar {
+    padding: 0.5rem 0.85rem;
+  }
+
+  .chat-quick-actions {
+    padding: 0.5rem 0.85rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quick-btn {
+    padding: 0.35rem 0.6rem;
     font-size: 0.65rem;
   }
 
-  .tier-btn {
-    width: 1.9rem;
-    height: 1.9rem;
-    line-height: 1.9rem;
+  .chat-messages {
+    padding: 0.85rem;
+    gap: 0.75rem;
+  }
+
+  .chat-bubble {
+    max-width: 90%;
     font-size: 0.8rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .chat-input-area {
+    padding: 0.65rem 0.85rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .chat-input-area input {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .chat-send-btn {
+    min-width: 3.25rem;
+    padding: 0.6rem 0.85rem !important;
+  }
+}
+
+/* 3. Extra Small Screens (max-width: 380px) */
+@media (max-width: 380px) {
+  .title {
+    font-size: 1.9rem;
+  }
+
+  .japanese-title {
+    font-size: 0.62rem;
+  }
+
+  .anime-card {
+    gap: 0.5rem 0.65rem;
+    padding: 0.75rem;
+  }
+
+  .anime-card .ep-counter {
+    font-size: 1.05rem;
+    min-width: 3.2rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .anime-info .anime-title {
+    font-size: 0.95rem;
+  }
+
+  .tier-btn {
+    width: 1.8rem;
+    height: 1.8rem;
+    line-height: 1.8rem;
+    font-size: 0.78rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .card-footer .status-tag {
+    text-align: center;
+    width: 100%;
+  }
+
+  .card-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .card-actions .icon-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .status-bar-row {
+    grid-template-columns: 5.2rem 1fr 1.8rem;
+    gap: 0.35rem;
+  }
+
+  .status-bar-label {
+    font-size: 0.68rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.55rem;
   }
 }
