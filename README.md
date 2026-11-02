@@ -49,14 +49,17 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Open `.env` and paste your Groq API key:
+Open `.env` and add your Supabase and Groq credentials. For Gnani voice, add the API key ID from your Gnani dashboard:
 
 ```
 GROQ_API_KEY=your_key_here
+GNANI_API_KEY=your_gnani_api_key_id
 ```
 
 Get a free key at [console.groq.com/keys](https://console.groq.com/keys) —
 no credit card required.
+
+The Copilot's **VOICE** button uses Gnani Prisma to transcribe and send your request directly to the Copilot. Gnani Timbre speaks the reply automatically; use **SPEAK** to replay or stop it. Clear add requests such as “Add Frieren to my archive” create a plan-to-watch entry. Voice requires `GNANI_API_KEY`; set it only in the server-side `.env` file. The first setup also needs the Supabase variables shown in `.env.example`.
 
 ## Run it
 
@@ -83,9 +86,10 @@ ep-log/
 
 ## Notes
 
-- Data is stored locally in `data.json` — no database needed
+- Watchlist data is stored in Supabase; `data.json` is legacy sample data
 - If you don't set a `GROQ_API_KEY`, everything still works except
   recommendations
+- If you don't set a `GNANI_API_KEY`, typed chat continues to work and voice controls report that voice is not configured
 - Built as a side project while pivoting toward GenAI/LLM application
   engineering — a small, complete example of wiring a Flask app to an
   LLM API end-to-end

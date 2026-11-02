@@ -289,6 +289,9 @@ if (typeof getAccessToken === "function" && getAccessToken()) {
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSend = document.getElementById("chat-send");
+const voiceRecordBtn = document.getElementById("voice-record-btn");
+const voiceLanguage = document.getElementById("voice-language");
+const voiceStatus = document.getElementById("voice-status");
 const personalitySelect = document.getElementById("personality-select");
 const spoilerToggle = document.getElementById("spoiler-toggle");
 const chatClearBtn = document.getElementById("chat-clear");
@@ -297,11 +300,18 @@ const copilotToggleBtn = document.getElementById("copilot-toggle-btn");
 const copilotCloseBtn = document.getElementById("copilot-close-btn");
 const copilotDrawer = document.getElementById("copilot-drawer");
 const copilotBackdrop = document.getElementById("copilot-backdrop");
-const openCopilotShortcut = document.getElementById("open-copilot-shortcut");
 
 let chatHistory = [];
 let spoilerGuard = true;
 let chatBusy = false;
+let mediaRecorder = null;
+let recordingStream = null;
+let recordingChunks = [];
+let recordingTimer = null;
+let activeAudio = null;
+let activeAudioUrl = null;
+let activeSpeechButton = null;
+let speechGeneration = 0;
 
 // ── Drawer Open/Close Mechanics ──
 function openCopilot() {
@@ -324,6 +334,8 @@ function closeCopilot() {
   }
   if (copilotBackdrop) copilotBackdrop.classList.remove("active");
   if (copilotToggleBtn) copilotToggleBtn.classList.remove("drawer-open");
+  cancelVoiceRecording();
+  stopSpokenReply();
 }
 
 function toggleCopilot() {
@@ -337,7 +349,6 @@ function toggleCopilot() {
 if (copilotToggleBtn) copilotToggleBtn.addEventListener("click", toggleCopilot);
 if (copilotCloseBtn) copilotCloseBtn.addEventListener("click", closeCopilot);
 if (copilotBackdrop) copilotBackdrop.addEventListener("click", closeCopilot);
-if (openCopilotShortcut) openCopilotShortcut.addEventListener("click", openCopilot);
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && copilotDrawer && copilotDrawer.classList.contains("active")) {
@@ -400,7 +411,7 @@ function renderChatMessages() {
   }
 
   chatMessages.innerHTML = chatHistory
-    .map((msg) => {
+    .map((msg, index) => {
       if (msg.role === "user") {
         return `
           <div class="chat-bubble chat-user">
@@ -415,6 +426,7 @@ function renderChatMessages() {
       return `
         <div class="chat-bubble chat-ai">
           <div class="chat-bubble-label">AI ADVISOR // 応答</div>
+          <button type="button" class="chat-voice-play" data-chat-speak="${index}" aria-label="Speak this reply">🔊 SPEAK</button>
           <div class="chat-bubble-content">${formatAiMessage(msg.content)}</div>
           ${addedNotice}
         </div>
@@ -426,9 +438,240 @@ function renderChatMessages() {
 }
 
 // ── Send Chat Message ──
-async function sendChatMessage(message, action = null, mood = null) {
+function setVoiceStatus(message) {
+  if (voiceStatus) voiceStatus.textContent = message;
+}
+
+function stopVoiceRecording() {
+  if (recordingTimer) clearTimeout(recordingTimer);
+  recordingTimer = null;
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+}
+
+function cancelVoiceRecording() {
+  if (recordingTimer) clearTimeout(recordingTimer);
+  recordingTimer = null;
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.onstop = null;
+    mediaRecorder.stop();
+  }
+  recordingStream?.getTracks().forEach(track => track.stop());
+  recordingStream = null;
+  if (voiceRecordBtn) {
+    voiceRecordBtn.disabled = false;
+    voiceRecordBtn.classList.remove("is-recording");
+    voiceRecordBtn.textContent = "🎙 VOICE";
+    voiceRecordBtn.setAttribute("aria-label", "Start voice recording");
+  }
+}
+
+function encodeWav(audioBuffer) {
+  const targetRate = 16000;
+  const sourceRate = audioBuffer.sampleRate;
+  const outputLength = Math.ceil(audioBuffer.length * targetRate / sourceRate);
+  const mono = new Float32Array(outputLength);
+  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, i) => audioBuffer.getChannelData(i));
+  for (let i = 0; i < outputLength; i++) {
+    const sourceIndex = i * sourceRate / targetRate;
+    const left = Math.floor(sourceIndex);
+    const right = Math.min(left + 1, audioBuffer.length - 1);
+    const fraction = sourceIndex - left;
+    let sample = 0;
+    for (const channel of channels) sample += channel[left] * (1 - fraction) + channel[right] * fraction;
+    mono[i] = sample / channels.length;
+  }
+  const wav = new ArrayBuffer(44 + mono.length * 2);
+  const view = new DataView(wav);
+  const writeText = (offset, value) => [...value].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + mono.length * 2, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, targetRate, true);
+  view.setUint32(28, targetRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, mono.length * 2, true);
+  for (let i = 0; i < mono.length; i++) {
+    const sample = Math.max(-1, Math.min(1, mono[i]));
+    view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([wav], { type: "audio/wav" });
+}
+
+async function transcribeRecording(blob) {
+  let audioContext;
+  try {
+    setVoiceStatus("Preparing audio…");
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
+    const wavBlob = encodeWav(decoded);
+    await audioContext.close();
+    if (wavBlob.size > 5 * 1024 * 1024) throw new Error("Recording is too large. Try a shorter clip.");
+    const form = new FormData();
+    form.append("audio", wavBlob, "voice.wav");
+    form.append("language", voiceLanguage.value);
+    setVoiceStatus("Transcribing with Gnani…");
+    const response = await authFetch("/api/voice/transcribe", { method: "POST", body: form });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Transcription failed.");
+    setVoiceStatus("Heard you — sending to Copilot…");
+    sendChatMessage(data.transcript, null, null, true);
+  } catch (error) {
+    setVoiceStatus(error.message || "Could not transcribe this recording.");
+  } finally {
+    if (audioContext && audioContext.state !== "closed") await audioContext.close();
+  }
+}
+
+if (voiceRecordBtn) {
+  voiceRecordBtn.addEventListener("click", async () => {
+    if (chatBusy) {
+      setVoiceStatus("Wait for the current Copilot reply before speaking again.");
+      return;
+    }
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      stopVoiceRecording();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setVoiceStatus("Microphone recording is not supported here.");
+      return;
+    }
+    try {
+      voiceRecordBtn.disabled = true;
+      recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
+        .find(candidate => MediaRecorder.isTypeSupported(candidate));
+      mediaRecorder = type ? new MediaRecorder(recordingStream, { mimeType: type }) : new MediaRecorder(recordingStream);
+      recordingChunks = [];
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size) recordingChunks.push(event.data);
+      };
+      mediaRecorder.onstop = async () => {
+        recordingStream?.getTracks().forEach(track => track.stop());
+        recordingStream = null;
+        voiceRecordBtn.classList.remove("is-recording");
+        voiceRecordBtn.textContent = "🎙 VOICE";
+        voiceRecordBtn.setAttribute("aria-label", "Start voice recording");
+        await transcribeRecording(new Blob(recordingChunks, { type: mediaRecorder.mimeType }));
+      };
+      mediaRecorder.start();
+      voiceRecordBtn.disabled = false;
+      voiceRecordBtn.classList.add("is-recording");
+      voiceRecordBtn.textContent = "■ STOP";
+      voiceRecordBtn.setAttribute("aria-label", "Stop voice recording");
+      setVoiceStatus("Listening… max 30 seconds");
+      recordingTimer = setTimeout(stopVoiceRecording, 30000);
+    } catch (error) {
+      voiceRecordBtn.disabled = false;
+      recordingStream?.getTracks().forEach(track => track.stop());
+      recordingStream = null;
+      setVoiceStatus(error.name === "NotAllowedError" ? "Microphone permission denied." : "Could not access microphone.");
+    }
+  });
+}
+
+function stopSpokenReply() {
+  speechGeneration++;
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio = null;
+  }
+  if (activeAudioUrl) {
+    URL.revokeObjectURL(activeAudioUrl);
+    activeAudioUrl = null;
+  }
+  if (activeSpeechButton) {
+    activeSpeechButton.disabled = false;
+    activeSpeechButton.textContent = "🔊 SPEAK";
+    activeSpeechButton = null;
+  }
+}
+
+function plainTextForSpeech(text) {
+  return (text || "")
+    .replace(/```[\s\S]*?```/g, " code omitted ")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/^[\s]*[-+]\s+/gm, "")
+    .replace(/^[\s]*\d+\.\s+/gm, "")
+    .replace(/[\\*_~`#>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function speakAssistantReply(text, language, button = null) {
+  stopSpokenReply();
+  const requestGeneration = speechGeneration;
+  activeSpeechButton = button;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "… GENERATING";
+  }
+  setVoiceStatus("Generating spoken reply with Gnani…");
+  try {
+    const response = await authFetch("/api/voice/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: plainTextForSpeech(text),
+        language: language === "indic-auto" ? "auto" : language,
+      }),
+    });
+    if (requestGeneration !== speechGeneration) return;
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Speech synthesis failed.");
+    }
+    activeAudioUrl = URL.createObjectURL(await response.blob());
+    activeAudio = new Audio(activeAudioUrl);
+    if (button) {
+      button.textContent = "■ STOP";
+      button.disabled = false;
+    }
+    setVoiceStatus("Copilot is speaking…");
+    activeAudio.addEventListener("ended", () => {
+      stopSpokenReply();
+      setVoiceStatus("Voice ready");
+    }, { once: true });
+    await activeAudio.play();
+  } catch (error) {
+    if (requestGeneration !== speechGeneration) return;
+    stopSpokenReply();
+    setVoiceStatus(error.message || "Could not play this reply.");
+  }
+}
+
+if (chatMessages) {
+  chatMessages.addEventListener("click", async event => {
+    const button = event.target.closest("[data-chat-speak]");
+    if (!button) return;
+    const entry = chatHistory[Number(button.dataset.chatSpeak)];
+    if (!entry || entry.role !== "assistant") return;
+    if (button === activeSpeechButton) {
+      stopSpokenReply();
+      setVoiceStatus("Speech stopped");
+      return;
+    }
+    speakAssistantReply(entry.content, voiceLanguage.value, button);
+  });
+}
+
+window.addEventListener("beforeunload", () => {
+  cancelVoiceRecording();
+  stopSpokenReply();
+});
+
+async function sendChatMessage(message, action = null, mood = null, speakReply = false) {
   if (chatBusy || !message || !message.trim()) return;
   chatBusy = true;
+  let replyToSpeak = null;
 
   const userText = message.trim();
   chatHistory.push({ role: "user", content: userText });
@@ -481,6 +724,7 @@ async function sendChatMessage(message, action = null, mood = null) {
         refreshAll();
       }
       chatHistory.push(entry);
+      if (speakReply) replyToSpeak = entry;
     }
   } catch (err) {
     typingEl.remove();
@@ -496,6 +740,11 @@ async function sendChatMessage(message, action = null, mood = null) {
     }
     renderChatMessages();
     saveChatHistory();
+    if (replyToSpeak) {
+      const replyIndex = chatHistory.indexOf(replyToSpeak);
+      const speakButton = chatMessages.querySelector(`[data-chat-speak="${replyIndex}"]`);
+      speakAssistantReply(replyToSpeak.content, voiceLanguage.value, speakButton);
+    }
   }
 }
 

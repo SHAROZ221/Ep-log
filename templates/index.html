@@ -59,7 +59,6 @@
   <section class="panel panel-add">
     <div class="panel-label-row">
       <div class="panel-label">+ LOG ENTRY</div>
-      <button type="button" id="open-copilot-shortcut" class="copilot-pill-shortcut" title="Open AI Anime Copilot">⚡ CONSULT COPILOT 🤖</button>
     </div>
     <form id="add-form" class="add-form">
       <input type="text" id="f-title" placeholder="Anime Title (e.g. Cowboy Bebop, Akira)" required>
@@ -166,6 +165,25 @@
   </div>
 
   <div class="chat-input-area">
+    <div class="voice-controls">
+      <div class="voice-input-row">
+        <button type="button" id="voice-record-btn" class="voice-btn" aria-label="Start voice recording" title="Record a voice message">🎙 VOICE</button>
+        <select id="voice-language" aria-label="Voice input language" title="Voice input language">
+          <option value="en-IN">English (India)</option>
+          <option value="hi-IN">हिन्दी</option>
+          <option value="ta-IN">தமிழ்</option>
+          <option value="te-IN">తెలుగు</option>
+          <option value="kn-IN">ಕನ್ನಡ</option>
+          <option value="ml-IN">മലയാളം</option>
+          <option value="mr-IN">मराठी</option>
+          <option value="bn-IN">বাংলা</option>
+          <option value="gu-IN">ગુજરાતી</option>
+          <option value="pa-IN">ਪੰਜਾਬੀ</option>
+          <option value="indic-auto">Auto detect</option>
+        </select>
+      </div>
+      <span id="voice-status" class="voice-status" aria-live="polite">Voice ready</span>
+    </div>
     <input type="text" id="chat-input" placeholder="Ask about anime, recs, watch orders..." autocomplete="off" />
     <button id="chat-send" class="btn btn-primary chat-send-btn">▶</button>
   </div>

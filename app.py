@@ -1,6 +1,8 @@
+import io
 import os
 import time
 import uuid
+import wave
 
 import requests
 from flask import Flask, jsonify, request, render_template
@@ -10,6 +12,7 @@ from supabase import create_client, Client
 load_dotenv()
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -41,6 +44,134 @@ def require_user():
     if not user:
         return None, (jsonify({"error": "Not signed in."}), 401)
     return user, None
+
+
+@app.errorhandler(413)
+def request_too_large(_error):
+    return jsonify({"error": "Audio upload is too large. Keep recordings under 30 seconds."}), 413
+
+
+GNANI_API_KEY = os.environ.get("GNANI_API_KEY")
+GNANI_STT_MODEL = os.environ.get("GNANI_STT_MODEL", "prisma-v3.0")
+GNANI_TTS_MODEL = os.environ.get("GNANI_TTS_MODEL", "timbre-v3.0")
+GNANI_TTS_VOICE = os.environ.get("GNANI_TTS_VOICE", "Shivani")
+GNANI_TTS_LANGUAGE = os.environ.get("GNANI_TTS_LANGUAGE", "en-IN")
+GNANI_STT_URL = "https://api.vachana.ai/stt/v3"
+GNANI_TTS_URL = "https://api.vachana.ai/api/v1/tts/inference"
+GNANI_LANGUAGES = {
+    "en-IN", "hi-IN", "ta-IN", "te-IN", "kn-IN", "ml-IN", "mr-IN",
+    "pa-IN", "bn-IN", "gu-IN", "indic-auto",
+}
+GNANI_TTS_LANGUAGES = GNANI_LANGUAGES - {"indic-auto"} | {"auto"}
+
+
+@app.route("/api/voice/transcribe", methods=["POST"])
+def transcribe_voice():
+    user, err = require_user()
+    if err:
+        return err
+    if not GNANI_API_KEY:
+        return jsonify({"error": "Voice input is not configured. Set GNANI_API_KEY on the server."}), 503
+
+    audio = request.files.get("audio")
+    language = request.form.get("language", "en-IN")
+    if language not in GNANI_LANGUAGES:
+        return jsonify({"error": "Choose a supported transcription language."}), 400
+    if not audio or not audio.filename:
+        return jsonify({"error": "Record a short voice clip first."}), 400
+    if audio.mimetype not in {"audio/wav", "audio/x-wav", "audio/wave"}:
+        return jsonify({"error": "Upload a WAV recording."}), 400
+
+    audio_bytes = audio.read(5 * 1024 * 1024 + 1)
+    if not audio_bytes or len(audio_bytes) > 5 * 1024 * 1024:
+        return jsonify({"error": "Audio must be non-empty and under 5 MB."}), 400
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+            duration = wav_file.getnframes() / wav_file.getframerate()
+            if wav_file.getnchannels() != 1 or wav_file.getsampwidth() != 2:
+                return jsonify({"error": "Audio must be mono 16-bit PCM WAV."}), 400
+            if duration <= 0 or duration > 30:
+                return jsonify({"error": "Recording must be between 1 and 30 seconds."}), 400
+    except (wave.Error, EOFError, ZeroDivisionError):
+        return jsonify({"error": "The uploaded WAV recording is invalid."}), 400
+
+    try:
+        response = requests.post(
+            GNANI_STT_URL,
+            headers={"X-API-Key-ID": GNANI_API_KEY},
+            files={"audio_file": ("voice.wav", audio_bytes, "audio/wav")},
+            data={"model": GNANI_STT_MODEL, "language_code": language},
+            timeout=45,
+        )
+        response.raise_for_status()
+        result = response.json()
+        transcript = (result.get("transcript") or "").strip()
+        if not transcript:
+            return jsonify({"error": "Gnani did not detect speech. Try recording again."}), 422
+        return jsonify({
+            "transcript": transcript,
+            "detected_language": result.get("detected_language_code"),
+        })
+    except requests.RequestException as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        app.logger.warning("Gnani transcription request failed (status=%s).", status)
+        return jsonify({"error": "Speech transcription is temporarily unavailable. Please try again."}), 502
+    except (ValueError, AttributeError):
+        return jsonify({"error": "Gnani returned an unreadable transcription response."}), 502
+
+
+@app.route("/api/voice/synthesize", methods=["POST"])
+def synthesize_voice():
+    user, err = require_user()
+    if err:
+        return err
+    if not GNANI_API_KEY:
+        return jsonify({"error": "Voice playback is not configured. Set GNANI_API_KEY on the server."}), 503
+
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+    text = body.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"error": "Text is required."}), 400
+    text = text.strip()
+    if len(text) > 4000:
+        return jsonify({"error": "That reply is too long to speak in one request."}), 400
+    language = body.get("language", GNANI_TTS_LANGUAGE)
+    if language == "indic-auto":
+        language = "auto"
+    if not isinstance(language, str) or language not in GNANI_TTS_LANGUAGES:
+        return jsonify({"error": "Choose a supported speech language."}), 400
+
+    try:
+        response = requests.post(
+            GNANI_TTS_URL,
+            headers={"X-API-Key-ID": GNANI_API_KEY, "Content-Type": "application/json"},
+            json={
+                "text": text,
+                "model": GNANI_TTS_MODEL,
+                "voice": GNANI_TTS_VOICE,
+                "language": language,
+                "speed": 1.0,
+                "audio_config": {
+                    "sample_rate": 22050,
+                    "num_channels": 1,
+                    "sample_width": 2,
+                    "encoding": "linear_pcm",
+                    "container": "wav",
+                },
+            },
+            timeout=60,
+        )
+        response.raise_for_status()
+        if not response.content:
+            return jsonify({"error": "Gnani returned empty audio."}), 502
+        from flask import Response
+        return Response(response.content, mimetype="audio/wav", headers={"Cache-Control": "no-store"})
+    except requests.RequestException as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        app.logger.warning("Gnani speech synthesis failed (status=%s).", status)
+        return jsonify({"error": "Speech playback is temporarily unavailable. Please try again."}), 502
 
 # Rough average episode runtime used to estimate hours watched.
 AVG_EPISODE_MINUTES = 24
@@ -522,17 +653,30 @@ def build_system_prompt(watchlist, personality_key, spoiler_guard, action=None, 
     return "\n".join(parts)
 
 
+def requested_add_title(message):
+    """Extract a clear, direct add command; contextual references stay with the LLM."""
+    pattern = re.compile(
+        r"^(?:(?:hey[, ]+)?(?:please\s+)?(?:can|could|would)\s+you\s+|"
+        r"i\s+(?:want|need)\s+you\s+to\s+|please\s+)?"
+        r"add\s+(?:(?:the\s+)?anime\s+(?:called\s+)?)?(.+?)"
+        r"(?:\s+to\s+(?:(?:my|the)\s+)?(?:archive|watchlist|list))?"
+        r"(?:\s+please)?[.!?]*$",
+        re.IGNORECASE,
+    )
+    match = pattern.match(message.strip())
+    if not match:
+        return None
+    title = match.group(1).strip(" \t.,!?\"'")
+    if not title or title.casefold() in {"this", "that", "this anime", "that anime", "it"}:
+        return None
+    return title[:150]
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     user, err = require_user()
     if err:
         return err
-
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return jsonify({
-            "error": "No GROQ_API_KEY set. Add one to your .env file to enable the AI Chatbot."
-        }), 400
 
     body = request.get_json(force=True) or {}
     message = (body.get("message") or "").strip()
@@ -544,6 +688,46 @@ def chat():
 
     if not message:
         return jsonify({"error": "Message cannot be empty."}), 400
+
+    # Execute an explicit add command directly so archive updates do not depend
+    # on the model remembering to emit its internal auto-add marker.
+    title_to_add = requested_add_title(message)
+    if title_to_add:
+        watchlist_response = (
+            supabase.table("anime").select("id,title").eq("user_id", user.id).execute()
+        )
+        if any((row.get("title") or "").casefold() == title_to_add.casefold() for row in watchlist_response.data):
+            return jsonify({
+                "response": f"{title_to_add} is already in your archive.",
+                "auto_added": [],
+            })
+        genre, media_type = fetch_metadata(title_to_add)
+        entry = {
+            "id": str(uuid.uuid4()),
+            "user_id": user.id,
+            "title": title_to_add,
+            "episode": 0,
+            "status": "plan-to-watch",
+            "notes": "Added via Copilot request",
+            "genre": genre,
+            "tier": None,
+            "type": media_type or None,
+        }
+        try:
+            supabase.table("anime").insert(entry).execute()
+        except Exception:
+            app.logger.exception("Could not add anime through Copilot for user %s.", user.id)
+            return jsonify({"error": "Could not add that anime to your archive. Please try again."}), 502
+        return jsonify({
+            "response": f"Added {title_to_add} to your archive as plan-to-watch.",
+            "auto_added": [title_to_add],
+        })
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return jsonify({
+            "error": "No GROQ_API_KEY set. Add one to your .env file to enable the AI Chatbot."
+        }), 400
 
     # Fetch user's live watchlist for personalized context
     wl_response = supabase.table("anime").select("*").eq("user_id", user.id).execute()
